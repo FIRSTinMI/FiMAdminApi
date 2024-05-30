@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi", "FiMAdminApi\FiMAdminApi.csproj", "{DA4DB564-68AF-4B2C-B37F-469C44DEDFBD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi.Data", "FiMAdminApi.Data\FiMAdminApi.Data.csproj", "{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DA4DB564-68AF-4B2C-B37F-469C44DEDFBD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA4DB564-68AF-4B2C-B37F-469C44DEDFBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA4DB564-68AF-4B2C-B37F-469C44DEDFBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA4DB564-68AF-4B2C-B37F-469C44DEDFBD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

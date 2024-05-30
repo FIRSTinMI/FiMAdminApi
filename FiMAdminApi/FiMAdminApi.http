@@ -1,0 +1,7 @@
+@FiMAdminApi_HostAddress = http://localhost:5291
+
+GET {{FiMAdminApi_HostAddress}}/api/v1.0/users
+Accept: application/json
+Authorization: Bearer {{$auth.token("supabase")}}
+
+###
