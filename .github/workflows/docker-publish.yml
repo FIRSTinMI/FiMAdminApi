@@ -84,6 +84,6 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-      - name: Start deployment
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: ./.github/workflows/google-cloudrun-docker.yml
+  deploy:
+    if: ${{ github.event_name != 'pull_request' }}
+    uses: ./.github/workflows/google-cloudrun-docker.yml
