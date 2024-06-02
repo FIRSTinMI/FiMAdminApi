@@ -86,5 +86,4 @@ jobs:
 
   deploy:
     if: ${{ github.event_name != 'pull_request' }}
-    environment: prod
     uses: ./.github/workflows/google-cloudrun-docker.yml
