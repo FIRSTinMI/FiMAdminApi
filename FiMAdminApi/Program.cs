@@ -68,6 +68,17 @@ builder.Services.AddAuthorization(opt =>
     }
 });
 
+builder.Services.AddCors(opt =>
+{
+    opt.AddDefaultPolicy(pol =>
+    {
+        pol.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? (string[])["http://localhost:5173"]);
+        pol.AllowCredentials();
+        pol.AllowAnyMethod();
+        pol.AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -84,6 +95,7 @@ app.UseSwaggerUI(
     });
 
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
