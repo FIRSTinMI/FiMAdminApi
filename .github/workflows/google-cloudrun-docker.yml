@@ -46,6 +46,9 @@ name: Build and Deploy to Cloud Run
 
 on:
   workflow_call:
+    secrets:
+      WIF_PROVIDER:
+        required: true
   workflow_dispatch:
 
 env:
