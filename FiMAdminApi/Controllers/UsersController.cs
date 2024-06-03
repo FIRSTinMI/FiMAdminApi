@@ -115,7 +115,7 @@ public class UsersController(
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult> UpdateUser(string id, [FromBody] UpdateRolesRequest request)
+    public async Task<ActionResult> UpdateUser(Guid id, [FromBody] UpdateRolesRequest request)
     {
         var update = new FixedAdminUserAttributes();
         if (request.NewRoles is not null)
@@ -129,12 +129,28 @@ public class UsersController(
             update.Role = request.NewRoles.Contains(GlobalRole.Superuser) ? "service_role" : "authenticated";
         }
         if (request.Name is not null)
+        {
             update.UserMetadata = new Dictionary<string, object>
             {
                 { "name", request.Name }
             };
+
+            var profile = await dbContext.Profiles.FindAsync(id);
+            if (profile is null)
+            {
+                profile = new Profile()
+                {
+                    Id = id
+                };
+                await dbContext.Profiles.AddAsync(profile);
+            }
             
-        await adminClient.UpdateUserById(id, update);
+            profile.Name = request.Name;
+
+            await dbContext.SaveChangesAsync();
+        }
+            
+        await adminClient.UpdateUserById(id.ToString(), update);
 
         return Ok();
     }
