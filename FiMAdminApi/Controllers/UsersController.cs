@@ -51,7 +51,8 @@ public class UsersController(
 
         var profiles = await dbContext.Profiles.Where(p => selectedUsers.Select(u => u.Id).Contains(p.Id))
             .ToDictionaryAsync(p => p.Id);
-        foreach (var user in selectedUsers)
+        
+        return Ok(selectedUsers.Select(user =>
         {
             if (user.Id is not null && profiles.TryGetValue(user.Id.Value, out var profile) &&
                 !string.IsNullOrWhiteSpace(profile.Name))
@@ -62,9 +63,9 @@ public class UsersController(
             {
                 user.Name = user.Email;
             }
-        }
-        
-        return Ok(selectedUsers);
+
+            return user;
+        }).ToList());
     }
 
     /// <summary>
