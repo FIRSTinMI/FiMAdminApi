@@ -88,4 +88,5 @@ jobs:
   deploy:
     if: ${{ github.event_name != 'pull_request' }}
     uses: ./.github/workflows/google-cloudrun-docker.yml
+    needs: build
     secrets: inherit
