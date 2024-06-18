@@ -1,4 +1,5 @@
-namespace FiMAdminApi.Data.Models;
+// ReSharper disable InconsistentNaming
+namespace FiMAdminApi.Data.Enums;
 
 public enum GlobalRole
 {

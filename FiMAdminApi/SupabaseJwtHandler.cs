@@ -44,8 +44,9 @@ public class SupabaseJwtHandler : JwtBearerHandler
         {
             user = await _adminClient.GetUser(token) ?? throw new InvalidOperationException("User from Supabase was null");
         }
-        catch (Exception _)
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Exception thrown while validating token");
             return AuthenticateResult.Fail("Token validation failed.");
         }
         

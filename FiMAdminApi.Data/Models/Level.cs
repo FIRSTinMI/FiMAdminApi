@@ -1,13 +1,12 @@
-using Supabase.Postgrest.Attributes;
-using Supabase.Postgrest.Models;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FiMAdminApi.Data.Models;
 
 [Table("levels")]
-public class Level : BaseModel
+public class Level
 {
-    [PrimaryKey("id")]
+    [Key]
     public int Id { get; set; }
-    [Column("name")]
-    public string Name { get; set; }
+    public required string Name { get; set; }
 }

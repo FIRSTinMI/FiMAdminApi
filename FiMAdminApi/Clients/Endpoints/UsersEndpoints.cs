@@ -1,31 +1,43 @@
-using Asp.Versioning;
+using System.ComponentModel;
+using Asp.Versioning.Builder;
 using FiMAdminApi.Data;
+using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Supabase.Gotrue;
+using Supabase.Gotrue.Exceptions;
 using Supabase.Gotrue.Interfaces;
 using User = Supabase.Gotrue.User;
 
-namespace FiMAdminApi.Controllers;
+namespace FiMAdminApi.Clients.Endpoints;
 
-[Authorize(nameof(GlobalRole.Superuser))]
-[ApiVersion("1.0")]
-[Route("/api/v{apiVersion:apiVersion}/users")]
-public class UsersController(
-        IGotrueAdminClient<User> adminClient,
-        DataContext dbContext
-    ) : BaseController
+public static class UsersEndpoints
 {
-    [HttpGet("")]
-    [ProducesResponseType(typeof(List<Data.Models.User>), StatusCodes.Status200OK)]
-    public async Task<ActionResult> GetUsers([FromQuery] string? searchTerm = null)
+    public static WebApplication RegisterUsersEndpoints(this WebApplication app, ApiVersionSet vs)
+    {
+        var usersGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/users")
+            .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Users")
+            .RequireAuthorization(nameof(GlobalRole.Superuser));
+
+        usersGroup.MapGet("", SearchUsers).WithSummary("Search Users");
+        usersGroup.MapGet("{id:guid:required}", GetUser).WithSummary("Get User by ID");
+        usersGroup.MapPut("{id:guid:required}", UpdateUser).WithSummary("Update User");
+
+        return app;
+    }
+
+    private static async Task<Ok<Data.Models.User[]>> SearchUsers(
+        [FromQuery] [Description("A free-text search to filter the returned users")]
+        string? searchTerm,
+        [FromServices] IGotrueAdminClient<User> adminClient,
+        [FromServices] DataContext dbContext)
     {
         var users = await adminClient.ListUsers(searchTerm, perPage: 20);
-        if (users is null) return Ok(Array.Empty<Data.Models.User>());
+        if (users is null) return TypedResults.Ok(Array.Empty<Data.Models.User>());
 
         var selectedUsers = users.Users.Select(u =>
         {
@@ -51,8 +63,8 @@ public class UsersController(
 
         var profiles = await dbContext.Profiles.Where(p => selectedUsers.Select(u => u.Id).Contains(p.Id))
             .ToDictionaryAsync(p => p.Id);
-        
-        return Ok(selectedUsers.Select(user =>
+
+        return TypedResults.Ok(selectedUsers.Select(user =>
         {
             if (user.Id is not null && profiles.TryGetValue(user.Id.Value, out var profile) &&
                 !string.IsNullOrWhiteSpace(profile.Name))
@@ -65,22 +77,30 @@ public class UsersController(
             }
 
             return user;
-        }).ToList());
+        }).ToArray());
     }
 
-    /// <summary>
-    /// TODO: This endpoint and the list endpoint should get cleaned up as they share a lot of (ugly) code
-    /// </summary>
-    /// <param name="id">The user's ID</param>
-    /// <returns>The user, or not found</returns>
-    [HttpGet("{id}")]
-    [ProducesResponseType(typeof(Data.Models.User), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> GetUser(string id)
+    private static async Task<Results<Ok<Data.Models.User>, NotFound>> GetUser(
+        [FromRoute] [Description("The user's ID")]
+        Guid id,
+        [FromServices] IGotrueAdminClient<User> adminClient,
+        [FromServices] DataContext dbContext)
     {
-        var user = await adminClient.GetUserById(id);
-        if (user is null) return NotFound();
-        
+        User user;
+        try
+        {
+            user = await adminClient.GetUserById(id.ToString()) ?? throw new InvalidOperationException();
+        }
+        catch (InvalidOperationException)
+        {
+            return TypedResults.NotFound();
+        }
+        catch (GotrueException ex)
+        {
+            if (ex.StatusCode != StatusCodes.Status404NotFound) throw;
+            return TypedResults.NotFound();
+        }
+
         IEnumerable<GlobalRole> roles = Array.Empty<GlobalRole>();
         user.AppMetadata.TryGetValue("globalRoles", out var jsonRoles);
         if (jsonRoles is JArray rolesArray)
@@ -99,9 +119,9 @@ public class UsersController(
             Name = null,
             GlobalRoles = roles.ToList()
         };
-        
+
         var profile = await dbContext.Profiles.SingleOrDefaultAsync(p => p.Id == userModel.Id);
-        
+
         if (user.Id is not null && profile is not null &&
             !string.IsNullOrWhiteSpace(profile.Name))
         {
@@ -112,11 +132,14 @@ public class UsersController(
             userModel.Name = user.Email;
         }
 
-        return Ok(userModel);
+        return TypedResults.Ok(userModel);
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<ActionResult> UpdateUser(Guid id, [FromBody] UpdateRolesRequest request)
+    private static async Task<Ok> UpdateUser(
+        [FromRoute] Guid id,
+        [FromBody] UpdateRolesRequest request,
+        [FromServices] DataContext dbContext,
+        [FromServices] IGotrueAdminClient<User> adminClient)
     {
         var update = new FixedAdminUserAttributes();
         if (request.NewRoles is not null)
@@ -129,6 +152,7 @@ public class UsersController(
             // This handles a special case, we want superusers to have access to literally everything
             update.Role = request.NewRoles.Contains(GlobalRole.Superuser) ? "service_role" : "authenticated";
         }
+
         if (request.Name is not null)
         {
             update.UserMetadata = new Dictionary<string, object>
@@ -139,21 +163,21 @@ public class UsersController(
             var profile = await dbContext.Profiles.FindAsync(id);
             if (profile is null)
             {
-                profile = new Profile()
+                profile = new Profile
                 {
                     Id = id
                 };
                 await dbContext.Profiles.AddAsync(profile);
             }
-            
+
             profile.Name = request.Name;
 
             await dbContext.SaveChangesAsync();
         }
-            
+
         await adminClient.UpdateUserById(id.ToString(), update);
 
-        return Ok();
+        return TypedResults.Ok();
     }
 
     public class UpdateRolesRequest
@@ -167,7 +191,6 @@ public class UsersController(
     /// </summary>
     private class FixedAdminUserAttributes : AdminUserAttributes
     {
-        [JsonProperty("role")]
-        public string Role { get; set; }
+        [JsonProperty("role")] public string? Role { get; set; }
     }
 }

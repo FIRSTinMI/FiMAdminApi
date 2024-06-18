@@ -1,14 +1,19 @@
+using System.ComponentModel;
+using System.Net.Mime;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using Asp.Versioning;
-using Asp.Versioning.ApiExplorer;
 using FiMAdminApi;
+using FiMAdminApi.Clients;
+using FiMAdminApi.Clients.Endpoints;
 using FiMAdminApi.Data;
-using FiMAdminApi.Data.Models;
+using FiMAdminApi.Data.Enums;
+using FiMAdminApi.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,9 +36,35 @@ builder.Services.AddApiVersioning(opt =>
     opt.GroupNameFormat = "'v'VVV";
     opt.SubstituteApiVersionInUrl = true;
 });
+builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
+builder.Services.AddOpenApi(opt =>
+{
+    opt.UseTransformer((doc, _, _) =>
+    {
+        doc.Info = new OpenApiInfo
+        {
+            Title = "FiM Admin API",
+            Description = "A collection of endpoints that require more stringent authorization or business logic",
+            Version = "v1"
+        };
+        return Task.CompletedTask;
+    });
+    opt.UseTransformer<BearerSecuritySchemeTransformer>();
+    opt.UseTransformer((doc, ctx, ct) =>
+    {
+        foreach (var tag in doc.Tags)
+        {
+            var controllerType = Assembly.GetExecutingAssembly()
+                .GetType($"FiMAdminApi.Controllers.{tag.Name}Controller", false);
+            if (controllerType is null) continue;
+
+            var description = controllerType.GetCustomAttribute<DescriptionAttribute>()?.Description;
+            tag.Description = description;
+        }
+        return Task.CompletedTask;
+    });
+});
 
 var key = builder.Configuration["Supabase:ServiceKey"];
 var supabaseUrl = builder.Configuration["Supabase:BaseUrl"];
@@ -64,7 +95,9 @@ builder.Services.AddAuthorization(opt =>
 {
     foreach (var role in Enum.GetNames<GlobalRole>())
     {
-        opt.AddPolicy(role, pol => pol.RequireAuthenticatedUser().RequireClaim("globalRole", role));
+        opt.AddPolicy(role, pol => pol
+                .RequireAuthenticatedUser()
+                .RequireClaim("globalRole", role, GlobalRole.Superuser.ToString()));
     }
 });
 
@@ -79,82 +112,80 @@ builder.Services.AddCors(opt =>
     });
 });
 
+builder.Services.AddScoped<UpsertEventsService>();
+builder.Services.AddClients();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-app.UseSwagger();
-app.UseSwaggerUI(
-    options =>
-    {
-        var descriptions = app.DescribeApiVersions();
-
-        foreach (var description in descriptions)
-        {
-            options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName.ToUpperInvariant());
-        }
-    });
-
+app.MapOpenApi();
 app.UseHttpsRedirection();
 app.UseCors();
+
+// Redirect from the root to API docs
+app.MapGet("/", ctx =>
+{
+    ctx.Response.Redirect("/docs");
+    return Task.CompletedTask;
+}).ExcludeFromDescription();
+
+// Serve API documentation
+app.MapGet("/docs", () =>
+{
+    const string resp = """
+                        <html>
+                        <head>
+                          <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+                          <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+                        </head>
+                        <body>
+                          <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash" basePath="/docs"/>
+                        </body>
+                        </html>
+                        """;
+    
+    return Results.Content(resp, MediaTypeNames.Text.Html);
+}).ExcludeFromDescription();
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
+
+var globalVs = app.NewApiVersionSet().HasApiVersion(new ApiVersion(1)).Build();
+app
+    .RegisterUsersEndpoints(globalVs)
+    .RegisterEventsCreateEndpoints(globalVs);
 
 app.Run();
 
-public class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
+internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider) : IOpenApiDocumentTransformer
 {
-    private readonly IApiVersionDescriptionProvider _provider;
-
-    public ConfigureSwaggerOptions(IApiVersionDescriptionProvider provider)
+    public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
     {
-        _provider = provider;
-    }
-
-    public void Configure(SwaggerGenOptions options)
-    {
-        foreach (var description in _provider.ApiVersionDescriptions)
+        var authenticationSchemes = await authenticationSchemeProvider.GetAllSchemesAsync();
+        if (authenticationSchemes.Any(authScheme => authScheme.Name == "Bearer"))
         {
-            options.SwaggerDoc(description.GroupName, CreateInfoForApiVersion(description));
-        }
-        
-        options.AddSecurityDefinition("Supabase Token", new OpenApiSecurityScheme
-        {
-            Description = "A JWT acquired by authenticating with the Supabase instance. Be sure to prefix with 'Bearer '",
-            Name = "Authorization",
-            Scheme = "Bearer",
-            In = ParameterLocation.Header,
-            Type = SecuritySchemeType.ApiKey
-        });
-        
-        options.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
+            // Add the security scheme at the document level
+            var requirements = new Dictionary<string, OpenApiSecurityScheme>
             {
-                new OpenApiSecurityScheme
+                ["Bearer"] = new OpenApiSecurityScheme
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Supabase Token"
-                    },
-                    Scheme = "Bearer",
-                    Name = "Authorization",
-                    In = ParameterLocation.Header
-                },
-                new List<string>()
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer", // "bearer" refers to the header name here
+                    In = ParameterLocation.Header,
+                    BearerFormat = "Json Web Token"
+                }
+            };
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes = requirements;
+
+            // Apply it as a requirement for all operations
+            foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations))
+            {
+                operation.Value.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecurityScheme { Reference = new OpenApiReference { Id = "Bearer", Type = ReferenceType.SecurityScheme } }] = Array.Empty<string>()
+                });
             }
-        });
-    }
-
-    private OpenApiInfo CreateInfoForApiVersion(ApiVersionDescription description)
-    {
-        var info = new OpenApiInfo
-        {
-            Title = "FiM Admin API",
-            Version = description.ApiVersion.ToString(),
-            Description = "Endpoints which require more stringent authorization or business logic. For everything else use Supabase directly."
-        };
-
-        return info;
+        }
     }
 }

@@ -1,3 +1,5 @@
+using FiMAdminApi.Data.Enums;
+
 namespace FiMAdminApi.Data.Models;
 
 public class User
