@@ -11,9 +11,11 @@ using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +40,49 @@ builder.Services.AddApiVersioning(opt =>
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
+
+// TODO: Remove when OpenAPI is working
+builder.Services.AddSwaggerGen(opt =>
+{
+    // // Add the security scheme at the document level
+    // var requirements = new Dictionary<string, OpenApiSecurityScheme>
+    // {
+    //     ["Bearer"] = new OpenApiSecurityScheme
+    //     {
+    //         Type = SecuritySchemeType.Http,
+    //         Scheme = "bearer", // "bearer" refers to the header name here
+    //         In = ParameterLocation.Header,
+    //         BearerFormat = "Json Web Token"
+    //     }
+    // };
+    // document.Components ??= new OpenApiComponents();
+    // document.Components.SecuritySchemes = requirements;
+    //
+    // // Apply it as a requirement for all operations
+    // foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations))
+    // {
+    //     operation.Value.Security.Add(new OpenApiSecurityRequirement
+    //     {
+    //         [new OpenApiSecurityScheme { Reference = new OpenApiReference { Id = "Bearer", Type = ReferenceType.SecurityScheme } }] = Array.Empty<string>()
+    //     });
+    // }
+
+    var scheme = new OpenApiSecurityScheme()
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        In = ParameterLocation.Header,
+        BearerFormat = "JSON Web Token"
+    };
+    opt.AddSecurityDefinition("Bearer", scheme);
+    opt.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        { scheme, [] }
+    });
+    
+    opt.OperationFilter<AuthorizeCheckOperationFilter>();
+});
+
 builder.Services.AddOpenApi(opt =>
 {
     opt.UseTransformer((doc, _, _) =>
@@ -119,6 +164,10 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.MapOpenApi();
+
+// TODO: Remove when OpenAPI is working
+app.MapSwagger();
+
 app.UseHttpsRedirection();
 app.UseCors();
 
@@ -130,6 +179,7 @@ app.MapGet("/", ctx =>
 }).ExcludeFromDescription();
 
 // Serve API documentation
+// TODO: Update to `/openapi/v1.json` when OpenAPI is working
 app.MapGet("/docs", () =>
 {
     const string resp = """
@@ -139,7 +189,7 @@ app.MapGet("/docs", () =>
                           <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
                         </head>
                         <body>
-                          <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash" basePath="/docs"/>
+                          <elements-api apiDescriptionUrl="/swagger/v1/swagger.json" router="hash" basePath="/docs"/>
                         </body>
                         </html>
                         """;
@@ -187,5 +237,32 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
                 });
             }
         }
+    }
+}
+
+// TODO: Remove when OpenAPI is working
+public class AuthorizeCheckOperationFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        operation.Responses.Add("401", new OpenApiResponse { Description = "Unauthorized" });
+        // operation.Responses.Add("403", new OpenApiResponse { Description = "Forbidden" });
+
+        var jwtBearerScheme = new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        };
+
+        operation.Security = new List<OpenApiSecurityRequirement>
+        {
+            new OpenApiSecurityRequirement
+            {
+                [jwtBearerScheme] = Array.Empty<string>()
+            }
+        };
     }
 }
