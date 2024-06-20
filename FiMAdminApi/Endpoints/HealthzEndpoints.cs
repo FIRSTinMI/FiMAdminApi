@@ -8,7 +8,7 @@ public static class HealthEndpoints
 {
     public static WebApplication RegisterHealthEndpoints(this WebApplication app)
     {
-        var usersGroup = app.MapGroup("/healthz")
+        var usersGroup = app.MapGroup("/health")
             .WithTags("Health Checks");
 
         usersGroup.MapGet("", async ([FromServices] HealthCheckService hc, [FromServices] ILoggerFactory logger) =>
