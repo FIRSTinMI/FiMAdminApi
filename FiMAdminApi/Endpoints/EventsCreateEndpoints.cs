@@ -4,7 +4,7 @@ using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace FiMAdminApi.Clients.Endpoints;
+namespace FiMAdminApi.Endpoints;
 
 public static class EventsCreateEndpoints
 {

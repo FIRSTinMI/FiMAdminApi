@@ -13,7 +13,7 @@ using Supabase.Gotrue.Exceptions;
 using Supabase.Gotrue.Interfaces;
 using User = Supabase.Gotrue.User;
 
-namespace FiMAdminApi.Clients.Endpoints;
+namespace FiMAdminApi.Endpoints;
 
 public static class UsersEndpoints
 {

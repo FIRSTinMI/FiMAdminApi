@@ -7,7 +7,7 @@ EXPOSE 8080
 EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/nightly/sdk:9.0-preview AS build
-ARG BUILD_CONFIGURATION=Release
+ARG BUILD_CONFIGURATION=Debug
 WORKDIR /src
 COPY ["FiMAdminApi/FiMAdminApi.csproj", "FiMAdminApi/"]
 RUN dotnet restore "FiMAdminApi/FiMAdminApi.csproj"
@@ -16,8 +16,8 @@ WORKDIR "/src/FiMAdminApi"
 RUN dotnet build "FiMAdminApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "FiMAdminApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+ARG BUILD_CONFIGURATION=Debug
+RUN dotnet publish "FiMAdminApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish
 
 FROM base AS final
 WORKDIR /app
