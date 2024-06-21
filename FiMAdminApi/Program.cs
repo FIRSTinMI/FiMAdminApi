@@ -53,11 +53,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddScheme<JwtBearerOptions, SupabaseJwtHandler>(JwtBearerDefaults.AuthenticationScheme, _ => { });
 builder.Services.AddAuthorization(opt =>
 {
-    foreach (var role in Enum.GetNames<GlobalRole>())
+    foreach (var permission in Enum.GetNames<GlobalPermission>())
     {
-        opt.AddPolicy(role, pol => pol
+        opt.AddPolicy(permission, pol => pol
                 .RequireAuthenticatedUser()
-                .RequireClaim("globalRole", role, GlobalRole.Superuser.ToString()));
+                .RequireClaim("globalPermission", permission, GlobalPermission.Superuser.ToString()));
     }
 });
 

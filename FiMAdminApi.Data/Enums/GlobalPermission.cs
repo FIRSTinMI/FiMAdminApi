@@ -1,7 +1,7 @@
 // ReSharper disable InconsistentNaming
 namespace FiMAdminApi.Data.Enums;
 
-public enum GlobalRole
+public enum GlobalPermission
 {
     Superuser,
     Events_Create,

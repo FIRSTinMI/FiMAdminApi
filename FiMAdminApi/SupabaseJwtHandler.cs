@@ -61,14 +61,13 @@ public class SupabaseJwtHandler : JwtBearerHandler
     {
         var claimsIdentity = new ClaimsIdentity(new []
         {
-            //new Claim("globalRoles", JsonSerializer.Serialize(user.AppMetadata["globalRoles"])),
             new Claim("email", user.Email ?? "(no email)"),
             new Claim("id", user.Id ?? throw new InvalidOperationException("User ID was null"))
         }, "Token");
-        if (user.AppMetadata["globalRoles"] is JArray roles)
+        if (user.AppMetadata["globalPermissions"] is JArray permissions)
         {
-            claimsIdentity.AddClaims(roles.Select(r => r.Value<string>()).Where(r => r != null)
-                .Select(r => new Claim("globalRole", r!)));
+            claimsIdentity.AddClaims(permissions.Select(r => r.Value<string>()).Where(r => r != null)
+                .Select(r => new Claim("globalPermission", r!)));
         }
         
         var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);

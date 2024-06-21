@@ -12,7 +12,7 @@ public static class EventsCreateEndpoints
     {
         var eventsCreateGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/users")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Events - Create")
-            .RequireAuthorization(nameof(GlobalRole.Events_Create));
+            .RequireAuthorization(nameof(GlobalPermission.Events_Create));
 
         eventsCreateGroup.MapPost("sync-source", SyncSource)
             .WithSummary("Create from Sync Source")

@@ -21,7 +21,7 @@ public static class UsersEndpoints
     {
         var usersGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/users")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Users")
-            .RequireAuthorization(nameof(GlobalRole.Superuser));
+            .RequireAuthorization(nameof(GlobalPermission.Superuser));
 
         usersGroup.MapGet("", SearchUsers).WithSummary("Search Users");
         usersGroup.MapGet("{id:guid:required}", GetUser).WithSummary("Get User by ID");
@@ -41,14 +41,14 @@ public static class UsersEndpoints
 
         var selectedUsers = users.Users.Select(u =>
         {
-            IEnumerable<GlobalRole> roles = Array.Empty<GlobalRole>();
-            u.AppMetadata.TryGetValue("globalRoles", out var jsonRoles);
-            if (jsonRoles is JArray rolesArray)
+            IEnumerable<GlobalPermission> permissions = Array.Empty<GlobalPermission>();
+            u.AppMetadata.TryGetValue("globalPermissions", out var jsonPermissions);
+            if (jsonPermissions is JArray permissionsArray)
             {
-                roles = rolesArray.Select<JToken, GlobalRole?>(t =>
+                permissions = permissionsArray.Select<JToken, GlobalPermission?>(t =>
                 {
                     var value = t.Value<string>();
-                    return Enum.TryParse<GlobalRole>(value, true, out var role) ? role : null;
+                    return Enum.TryParse<GlobalPermission>(value, true, out var permission) ? permission : null;
                 }).Where(r => r is not null).Select(r => r!.Value);
             }
 
@@ -57,7 +57,7 @@ public static class UsersEndpoints
                 Id = Guid.Parse(u.Id!),
                 Email = u.Email,
                 Name = null,
-                GlobalRoles = roles.ToList()
+                GlobalPermissions = permissions.ToList()
             };
         });
 
@@ -101,14 +101,14 @@ public static class UsersEndpoints
             return TypedResults.NotFound();
         }
 
-        IEnumerable<GlobalRole> roles = Array.Empty<GlobalRole>();
-        user.AppMetadata.TryGetValue("globalRoles", out var jsonRoles);
-        if (jsonRoles is JArray rolesArray)
+        IEnumerable<GlobalPermission> permissions = Array.Empty<GlobalPermission>();
+        user.AppMetadata.TryGetValue("globalPermissions", out var jsonPermissions);
+        if (jsonPermissions is JArray permissionsArray)
         {
-            roles = rolesArray.Select<JToken, GlobalRole?>(t =>
+            permissions = permissionsArray.Select<JToken, GlobalPermission?>(t =>
             {
                 var value = t.Value<string>();
-                return Enum.TryParse<GlobalRole>(value, true, out var role) ? role : null;
+                return Enum.TryParse<GlobalPermission>(value, true, out var permission) ? permission : null;
             }).Where(r => r is not null).Select(r => r!.Value);
         }
 
@@ -117,7 +117,7 @@ public static class UsersEndpoints
             Id = Guid.Parse(user.Id!),
             Email = user.Email,
             Name = null,
-            GlobalRoles = roles.ToList()
+            GlobalPermissions = permissions.ToList()
         };
 
         var profile = await dbContext.Profiles.SingleOrDefaultAsync(p => p.Id == userModel.Id);
@@ -137,20 +137,20 @@ public static class UsersEndpoints
 
     private static async Task<Ok> UpdateUser(
         [FromRoute] Guid id,
-        [FromBody] UpdateRolesRequest request,
+        [FromBody] UpdateUserRequest request,
         [FromServices] DataContext dbContext,
         [FromServices] IGotrueAdminClient<User> adminClient)
     {
         var update = new FixedAdminUserAttributes();
-        if (request.NewRoles is not null)
+        if (request.NewPermissions is not null)
         {
             update.AppMetadata = new Dictionary<string, object>
             {
-                { "globalRoles", request.NewRoles.Select(s => s.ToString()) }
+                { "globalPermissions", request.NewPermissions.Select(s => s.ToString()) }
             };
 
             // This handles a special case, we want superusers to have access to literally everything
-            update.Role = request.NewRoles.Contains(GlobalRole.Superuser) ? "service_role" : "authenticated";
+            update.Role = request.NewPermissions.Contains(GlobalPermission.Superuser) ? "service_role" : "authenticated";
         }
 
         if (request.Name is not null)
@@ -180,10 +180,10 @@ public static class UsersEndpoints
         return TypedResults.Ok();
     }
 
-    public class UpdateRolesRequest
+    public class UpdateUserRequest
     {
         public string? Name { get; set; }
-        public IEnumerable<GlobalRole>? NewRoles { get; set; }
+        public IEnumerable<GlobalPermission>? NewPermissions { get; set; }
     }
 
     /// <summary>
