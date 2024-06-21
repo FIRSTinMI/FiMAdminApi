@@ -24,7 +24,6 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
         var season = await GetAndValidateSeason(request.SeasonId, response);
         if (season is null)
         {
-            response.Errors.Add("Season not found");
             return response;
         }
 
@@ -51,11 +50,8 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
                 .Select(async code =>
                 {
                     var resp = await dataClient.GetEventAsync(season, code.Trim());
-                    if (resp is not null) return resp;
-                    
-                    response.Errors.Add($"Event with code {code} not found");
-                    return null;
-
+                    if (resp is null) response.Errors.Add($"Event with code {code} not found");
+                    return resp;
                 }))).Where(e => e is not null).Select(e => e!).ToList();
         }
 
@@ -64,9 +60,47 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
             response.Warnings.Add("No events to create");
             return response;
         }
-        
-        
 
+        foreach (var apiEvent in apiEvents)
+        {
+            var dbEvent = dbEvents.FirstOrDefault(e => e.Code == apiEvent.EventCode);
+            if (dbEvent is not null)
+            {
+                if (!request.OverrideExisting)
+                {
+                    response.Warnings.Add($"Found existing event {apiEvent.EventCode}, skipping");
+                    continue;
+                }
+
+                dbEvent.Name = apiEvent.Name;
+                dbEvent.StartTime = apiEvent.StartTime.UtcDateTime;
+                dbEvent.EndTime = apiEvent.EndTime.UtcDateTime;
+                context.Events.Update(dbEvent);
+                response.UpsertedEvents.Add(dbEvent);
+            }
+            else
+            {
+                var newEvent = new Event
+                {
+                    Id = new Guid(),
+                    SeasonId = season.Id,
+                    Key = GenerateEventKey(),
+                    Code = apiEvent.EventCode,
+                    Name = apiEvent.Name,
+                    IsOfficial = false,
+                    StartTime = apiEvent.StartTime.UtcDateTime,
+                    EndTime = apiEvent.EndTime.UtcDateTime,
+                    TimeZone = apiEvent.TimeZone.Id,
+                    Status = "NotStarted",
+                    SyncSource = request.DataSource
+                };
+
+                context.Events.Add(newEvent);
+                response.UpsertedEvents.Add(newEvent);
+            }
+        }
+
+        await context.SaveChangesAsync();
         return response;
     }
 
@@ -88,7 +122,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
         return season;
     }
 
-    private string GenerateEventKey()
+    private static string GenerateEventKey()
     {
         // Removes any ambiguous characters
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -109,7 +143,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
         
         public DataSources DataSource { get; set; }
         public string? DistrictCode { get; set; }
-        public IEnumerable<string> EventCodes { get; set; } = Array.Empty<string>();
+        public IEnumerable<string> EventCodes { get; set; } = [];
     }
 
     public class UpsertEventsResponse

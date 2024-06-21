@@ -8,4 +8,5 @@ public class Event
     public string City { get; set; }
     public DateTimeOffset StartTime { get; set; }
     public DateTimeOffset EndTime { get; set; }
+    public TimeZoneInfo TimeZone { get; set; }
 }

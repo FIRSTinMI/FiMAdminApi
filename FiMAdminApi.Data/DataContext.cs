@@ -10,4 +10,9 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<Season> Seasons { get; init; }
     public DbSet<Event> Events { get; init; }
     public DbSet<TruckRoute> TruckRoutes { get; init; }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties(typeof(Enum)).HaveConversion<string>();
+    }
 }

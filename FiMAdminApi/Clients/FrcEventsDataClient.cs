@@ -3,6 +3,7 @@ using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
 using FiMAdminApi.Data.Models;
+using FiMAdminApi.Extensions;
 using Event = FiMAdminApi.Clients.Models.Event;
 
 namespace FiMAdminApi.Clients;
@@ -18,11 +19,13 @@ public class FrcEventsDataClient : IDataClient
         var configSection = sp.GetRequiredService<IConfiguration>().GetRequiredSection("Clients:FrcEvents");
         
         var apiKey = configSection["ApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey)) throw new ArgumentNullException(nameof(apiKey));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ApplicationException("FrcEvents ApiKey was null but is required");
         _apiKey = apiKey;
 
         var baseUrl = configSection["BaseUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl)) throw new ArgumentNullException(nameof(baseUrl));
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new ApplicationException("FrcEvents BaseUrl was null but is required");
         _baseUrl = new Uri(baseUrl);
         
         _httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient("FrcEvents");
@@ -51,7 +54,8 @@ public class FrcEventsDataClient : IDataClient
                 DistrictCode = evt.GetProperty("districtCode").GetString(),
                 City = evt.GetProperty("city").GetString() ?? "(No city)",
                 StartTime = new DateTimeOffset(startTime, timeZone.GetUtcOffset(startTime)),
-                EndTime = new DateTimeOffset(endTime, timeZone.GetUtcOffset(endTime))
+                EndTime = new DateTimeOffset(endTime, timeZone.GetUtcOffset(endTime)),
+                TimeZone = timeZone
             };
         }).SingleOrDefault((Event?)null);
     }
@@ -61,7 +65,7 @@ public class FrcEventsDataClient : IDataClient
         throw new NotImplementedException();
     }
 
-    private string GetSeason(Season season)
+    private static string GetSeason(Season season)
     {
         return season.StartTime.Year.ToString();
     }
@@ -77,7 +81,7 @@ public class FrcEventsDataClient : IDataClient
             new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(_apiKey)));
 
         var relativeUri =
-            $"{EncodeString(endpoint, Uri.EscapeDataString)}{(queryParams is not null && queryParams.Count > 0 ? QueryString.Create(queryParams!) : "")}";
+            $"{endpoint.EncodeString(Uri.EscapeDataString)}{(queryParams is not null && queryParams.Count > 0 ? QueryString.Create(queryParams!) : "")}";
 
         if (relativeUri.StartsWith('/'))
             throw new ArgumentException("Endpoint must be a relative path", nameof(endpoint));
@@ -85,17 +89,5 @@ public class FrcEventsDataClient : IDataClient
         request.RequestUri = new Uri(_baseUrl, relativeUri);
 
         return request;
-    }
-
-    private string EncodeString(FormattableString str, Func<string, string> func)
-    {
-        var invariantParameters = str.GetArguments()
-            .Select(a => FormattableString.Invariant($"{a}"));
-        var escapedParameters = invariantParameters
-            .Select(func)
-            .Cast<object>()
-            .ToArray();
-
-        return string.Format(str.Format, escapedParameters);
     }
 }
