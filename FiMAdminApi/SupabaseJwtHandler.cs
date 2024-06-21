@@ -11,7 +11,7 @@ namespace FiMAdminApi;
 
 public class SupabaseJwtHandler : JwtBearerHandler
 {
-    private IGotrueAdminClient<User> _adminClient { get; set; }
+    private readonly IGotrueAdminClient<User> _adminClient;
     public SupabaseJwtHandler(IGotrueAdminClient<User> adminClient, IOptionsMonitor<JwtBearerOptions> options, ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock) : base(options, logger, encoder, clock)
     {
         _adminClient = adminClient;
@@ -57,14 +57,14 @@ public class SupabaseJwtHandler : JwtBearerHandler
     }
 
 
-    private ClaimsPrincipal GetClaims(User user)
+    private static ClaimsPrincipal GetClaims(User user)
     {
         var claimsIdentity = new ClaimsIdentity(new []
         {
             new Claim("email", user.Email ?? "(no email)"),
             new Claim("id", user.Id ?? throw new InvalidOperationException("User ID was null"))
         }, "Token");
-        if (user.AppMetadata["globalPermissions"] is JArray permissions)
+        if (user.AppMetadata.TryGetValue("globalPermissions", out var value) && value is JArray permissions)
         {
             claimsIdentity.AddClaims(permissions.Select(r => r.Value<string>()).Where(r => r != null)
                 .Select(r => new Claim("globalPermission", r!)));
