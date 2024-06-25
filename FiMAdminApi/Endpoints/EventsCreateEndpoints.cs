@@ -10,7 +10,7 @@ public static class EventsCreateEndpoints
 {
     public static WebApplication RegisterEventsCreateEndpoints(this WebApplication app, ApiVersionSet vs)
     {
-        var eventsCreateGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/users")
+        var eventsCreateGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/events-create")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Events - Create")
             .RequireAuthorization(nameof(GlobalPermission.Events_Create));
 
