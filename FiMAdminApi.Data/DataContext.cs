@@ -9,6 +9,7 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<Level> Levels { get; init; }
     public DbSet<Season> Seasons { get; init; }
     public DbSet<Event> Events { get; init; }
+    public DbSet<EventStaff> EventStaffs { get; init; }
     public DbSet<TruckRoute> TruckRoutes { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.Enums;
@@ -179,7 +180,7 @@ public static class UsersEndpoints
 
         return TypedResults.Ok();
     }
-
+    
     public class UpdateUserRequest
     {
         public string? Name { get; set; }

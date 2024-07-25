@@ -29,13 +29,11 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
 
         var dbEvents = await context.Events.Where(e => e.SeasonId == season.Id).ToListAsync();
 
-        var dataClient = request.DataSource switch
+        var dataClient = services.GetKeyedService<IDataClient>(request.DataSource);
+        if (dataClient is null)
         {
-            DataSources.FrcEvents => services.GetRequiredKeyedService<IDataClient>("FrcEvents"),
-            DataSources.BlueAlliance => throw new ArgumentOutOfRangeException(),
-            DataSources.OrangeAlliance => throw new ArgumentOutOfRangeException(),
-            _ => throw new ArgumentOutOfRangeException()
-        };
+            throw new ArgumentOutOfRangeException();
+        }
 
         List<Clients.Models.Event> apiEvents;
         if (!string.IsNullOrWhiteSpace(request.DistrictCode))
@@ -73,8 +71,9 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
                 }
 
                 dbEvent.Name = apiEvent.Name;
-                dbEvent.StartTime = apiEvent.StartTime.UtcDateTime;
+                dbEvent.StartTime = apiEvent.StartTime.UtcDateTime.AddDays(-1);
                 dbEvent.EndTime = apiEvent.EndTime.UtcDateTime;
+                dbEvent.TimeZone = apiEvent.TimeZone.Id;
                 context.Events.Update(dbEvent);
                 response.UpsertedEvents.Add(dbEvent);
             }
@@ -88,10 +87,10 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
                     Code = apiEvent.EventCode,
                     Name = apiEvent.Name,
                     IsOfficial = false,
-                    StartTime = apiEvent.StartTime.UtcDateTime,
+                    StartTime = apiEvent.StartTime.UtcDateTime.AddDays(-1),
                     EndTime = apiEvent.EndTime.UtcDateTime,
                     TimeZone = apiEvent.TimeZone.Id,
-                    Status = "NotStarted",
+                    Status = EventStatus.NotStarted,
                     SyncSource = request.DataSource
                 };
 

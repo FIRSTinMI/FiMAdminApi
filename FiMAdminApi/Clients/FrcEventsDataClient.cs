@@ -33,10 +33,20 @@ public class FrcEventsDataClient : IDataClient
 
     public async Task<Event?> GetEventAsync(Season season, string eventCode)
     {
-        var resp = await _httpClient.SendAsync(BuildGetRequest($"{GetSeason(season)}/events", new Dictionary<string, string>
-        {
-            { "eventCode", eventCode },
-        }));
+        return (await GetAndParseEvents(season, eventCode: eventCode)).SingleOrDefault((Event?)null);
+    }
+
+    public async Task<List<Event>> GetDistrictEventsAsync(Season season, string districtCode)
+    {
+        return (await GetAndParseEvents(season, districtCode: districtCode)).ToList();
+    }
+
+    private async Task<IEnumerable<Event>> GetAndParseEvents(Season season, string? eventCode = null, string? districtCode = null)
+    {
+        var queryParams = new Dictionary<string, string>();
+        if (eventCode is not null) queryParams.Add("eventCode", eventCode);
+        if (districtCode is not null) queryParams.Add("districtCode", districtCode);
+        var resp = await _httpClient.SendAsync(BuildGetRequest($"{GetSeason(season)}/events", queryParams));
         resp.EnsureSuccessStatusCode();
 
         using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
@@ -57,12 +67,7 @@ public class FrcEventsDataClient : IDataClient
                 EndTime = new DateTimeOffset(endTime, timeZone.GetUtcOffset(endTime)),
                 TimeZone = timeZone
             };
-        }).SingleOrDefault((Event?)null);
-    }
-
-    public Task<List<Event>> GetDistrictEventsAsync(Season season, string districtCode)
-    {
-        throw new NotImplementedException();
+        });
     }
 
     private static string GetSeason(Season season)

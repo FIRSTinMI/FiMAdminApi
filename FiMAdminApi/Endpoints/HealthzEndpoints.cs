@@ -14,8 +14,6 @@ public static class HealthEndpoints
         usersGroup.MapGet("", async ([FromServices] HealthCheckService hc, [FromServices] ILoggerFactory logger) =>
             {
                 var report = await hc.CheckHealthAsync();
-                
-                logger.CreateLogger(nameof(HealthEndpoints)).LogWarning("In the health check");
 
                 return report.Status switch
                 {
@@ -37,7 +35,7 @@ public static class HealthEndpoints
         return app;
     }
 
-    private class ThinHealthReport(HealthReport report)
+    public class ThinHealthReport(HealthReport report)
     {
         public required HealthStatus Status { get; set; } = report.Status;
         public required string TotalDuration { get; set; } = report.TotalDuration.ToString();
@@ -45,7 +43,7 @@ public static class HealthEndpoints
         public required Dictionary<string, Entry> Entries { get; set; } =
             report.Entries.Select(kvp => new KeyValuePair<string, Entry>(kvp.Key, new Entry(kvp.Value))).ToDictionary();
 
-        internal class Entry(HealthReportEntry entry)
+        public class Entry(HealthReportEntry entry)
         {
             public IReadOnlyDictionary<string, object> Data { get; set; } = entry.Data;
             public string? Description { get; set; } = entry.Description;

@@ -5,16 +5,20 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+<!--        <PublishAot>true</PublishAot>-->
+        <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
         <UserSecretsId>b6263931-3814-4b25-b0c5-089ac32ee89a</UserSecretsId>
   </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
         <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.1" />
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.5" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0-preview.5.24306.11" />
-        <PackageReference Include="Supabase" Version="1.0.1" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0-preview.6.24328.4" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0-preview.6.24328.4" />
+        <PackageReference Include="MiniValidation" Version="0.9.1" />
+        <PackageReference Include="Supabase" Version="1.0.5" />
+        <PackageReference Include="System.Collections" Version="4.3.0" />
+        <PackageReference Include="System.Text.Json" Version="9.0.0-preview.6.24327.7" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,11 +1,8 @@
-using System.ComponentModel;
 using System.Net.Mime;
-using System.Reflection;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace FiMAdminApi.Infrastructure;
 
@@ -26,25 +23,6 @@ public static class ApiStartupExtensions
         services.AddProblemDetails();
         services.AddEndpointsApiExplorer();
 
-        // TODO: Remove when OpenAPI is working
-        services.AddSwaggerGen(opt =>
-        {
-            var scheme = new OpenApiSecurityScheme()
-            {
-                Type = SecuritySchemeType.Http,
-                Scheme = "bearer",
-                In = ParameterLocation.Header,
-                BearerFormat = "JSON Web Token"
-            };
-            opt.AddSecurityDefinition("Bearer", scheme);
-            opt.AddSecurityRequirement(new OpenApiSecurityRequirement()
-            {
-                { scheme, [] }
-            });
-
-            opt.OperationFilter<AuthorizeCheckOperationFilter>();
-        });
-
         services.AddOpenApi(opt =>
         {
             opt.UseTransformer((doc, _, _) =>
@@ -59,20 +37,6 @@ public static class ApiStartupExtensions
                 return Task.CompletedTask;
             });
             opt.UseTransformer<BearerSecuritySchemeTransformer>();
-            opt.UseTransformer((doc, ctx, ct) =>
-            {
-                foreach (var tag in doc.Tags)
-                {
-                    var controllerType = Assembly.GetExecutingAssembly()
-                        .GetType($"FiMAdminApi.Controllers.{tag.Name}Controller", false);
-                    if (controllerType is null) continue;
-
-                    var description = controllerType.GetCustomAttribute<DescriptionAttribute>()?.Description;
-                    tag.Description = description;
-                }
-
-                return Task.CompletedTask;
-            });
         });
 
         return services;
@@ -82,9 +46,6 @@ public static class ApiStartupExtensions
     {
         // Configure the HTTP request pipeline.
         app.MapOpenApi();
-
-        // TODO: Remove when OpenAPI is working
-        app.MapSwagger();
         
         return app;
     }
@@ -109,7 +70,7 @@ public static class ApiStartupExtensions
                                   <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
                                 </head>
                                 <body>
-                                  <elements-api apiDescriptionUrl="/swagger/v1/swagger.json" router="hash" basePath="/docs"/>
+                                  <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash" basePath="/docs"/>
                                 </body>
                                 </html>
                                 """;
@@ -151,32 +112,5 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
                 });
             }
         }
-    }
-}
-
-// TODO: Remove when OpenAPI is working
-public class AuthorizeCheckOperationFilter : IOperationFilter
-{
-    public void Apply(OpenApiOperation operation, OperationFilterContext context)
-    {
-        operation.Responses.Add("401", new OpenApiResponse { Description = "Unauthorized" });
-        // operation.Responses.Add("403", new OpenApiResponse { Description = "Forbidden" });
-
-        var jwtBearerScheme = new OpenApiSecurityScheme
-        {
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        };
-
-        operation.Security = new List<OpenApiSecurityRequirement>
-        {
-            new OpenApiSecurityRequirement
-            {
-                [jwtBearerScheme] = Array.Empty<string>()
-            }
-        };
     }
 }

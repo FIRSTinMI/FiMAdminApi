@@ -1,6 +1,6 @@
-using System.Text.Json.Serialization;
 using Asp.Versioning;
 using FiMAdminApi;
+using FiMAdminApi.Auth;
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.Enums;
@@ -8,18 +8,20 @@ using FiMAdminApi.Endpoints;
 using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateSlimBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.SerializerOptions.TypeInfoResolver = SerializerContext.Default;
 });
-builder.Services.AddControllers().AddJsonOptions(opt =>
-{
-    opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
+// builder.Services.AddControllers().AddJsonOptions(opt =>
+// {
+//     opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+// });
 
 builder.Services.AddApiConfiguration();
 
@@ -60,6 +62,7 @@ builder.Services.AddAuthorization(opt =>
                 .RequireClaim("globalPermission", permission, GlobalPermission.Superuser.ToString()));
     }
 });
+builder.Services.AddScoped<IAuthorizationHandler, EventAuthorizationHandler>();
 
 builder.Services.AddCors(opt =>
 {
@@ -93,6 +96,7 @@ var globalVs = app.NewApiVersionSet().HasApiVersion(new ApiVersion(1)).Build();
 app
     .RegisterHealthEndpoints()
     .RegisterUsersEndpoints(globalVs)
-    .RegisterEventsCreateEndpoints(globalVs);
+    .RegisterEventsCreateEndpoints(globalVs)
+    .RegisterEventsEndpoints(globalVs);
 
 app.Run();

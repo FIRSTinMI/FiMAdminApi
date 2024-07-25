@@ -18,9 +18,21 @@ public class Event
     public required DateTime EndTime { get; set; }
     public required string TimeZone { get; set; }
     public DateTimeOffset? SyncAsOf { get; set; }
-    public required string Status { get; set; } = "NotStarted";
+    public required EventStatus Status { get; set; } = EventStatus.NotStarted;
     
     // Relations
     [Description("Note: This object may not be populated in some endpoints.")]
     public Season? Season { get; set; }
+}
+
+public enum EventStatus
+{
+    NotStarted,
+    AwaitingQuals,
+    QualsInProgress,
+    AwaitingAlliances,
+    AwaitingPlayoffs,
+    PlayoffsInProgress,
+    WinnerDetermined,
+    Completed
 }

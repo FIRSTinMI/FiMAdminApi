@@ -5,3 +5,21 @@ Accept: application/json
 Authorization: Bearer {{$auth.token("supabase")}}
 
 ###
+
+POST {{FiMAdminApi_HostAddress}}/api/v1/users/sync-source
+Accept: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsImtpZCI6Iit3K0Fsa1dmOFViM0J4bXUiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzE4OTMzNTcyLCJpYXQiOjE3MTg5Mjk5NzIsImlzcyI6Imh0dHBzOi8vdnlwdmN2aWd3bXJtenR5ZGl2eGwuc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImIyNDYwNmNjLWFjMDEtNDgyZi1hZDUzLTU1ZWQxNTZkOGQ4YiIsImVtYWlsIjoiZXZhbkBldmFuZG9lcy5kZXYiLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJnbG9iYWxSb2xlcyI6WyJTdXBlcnVzZXIiLCJFcXVpcG1lbnRfTWFuYWdlIiwiRXZlbnRzX0NyZWF0ZSIsIkV2ZW50c19NYW5hZ2UiLCJFdmVudHNfTm90ZSIsIkV2ZW50c19WaWV3IiwiRXF1aXBtZW50X05vdGUiXSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJhbm90aGVyS2V5IjoxLCJnbG9iYWxSb2xlcyI6WyJTdXBlcnVzZXIiLCJFdmVudHNfQ3JlYXRlIl0sIm5hbWUiOiJFdmFuIExpaG91In0sInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTcxODU0NjUxNX1dLCJzZXNzaW9uX2lkIjoiZWY4OWE3OGItZmJiMS00YWY1LThhZjItZjlhOTZiMzY3ZjFlIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.7FJS5eTZxR6aUpxKRd2zRXastyozLmGPbzlSKSW8alM
+Content-Type: application/json
+
+{
+  "overrideExisting": true,
+  "seasonId": 1,
+  "dataSource": "FrcEvents",
+  "districtCode": null,
+  "eventCodes": [
+    "CODEN"
+  ]
+}
+
+###
+

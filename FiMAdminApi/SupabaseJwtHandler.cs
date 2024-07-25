@@ -27,13 +27,13 @@ public class SupabaseJwtHandler : JwtBearerHandler
         // Get the token from the Authorization header
         if (!Context.Request.Headers.TryGetValue("Authorization", out var authorizationHeaderValues))
         {
-            return AuthenticateResult.Fail("Authorization header not found.");
+            return AuthenticateResult.NoResult();
         }
 
         var authorizationHeader = authorizationHeaderValues.FirstOrDefault();
         if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
         {
-            return AuthenticateResult.Fail("Bearer token not found in Authorization header.");
+            return AuthenticateResult.NoResult();
         }
 
         var token = authorizationHeader["Bearer ".Length..].Trim();
