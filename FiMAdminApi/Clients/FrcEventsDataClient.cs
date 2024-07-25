@@ -52,8 +52,7 @@ public class FrcEventsDataClient : IDataClient
         using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
         return json.RootElement.GetProperty("Events").EnumerateArray().Select(evt =>
         {
-            var timeZone =
-                TimeZoneInfo.FindSystemTimeZoneById(evt.GetProperty("timezone").GetString() ?? TimeZoneInfo.Utc.Id);
+            var timeZone = NormalizeTimeZone(evt.GetProperty("timezone").GetString());
             var startTime = evt.GetProperty("dateStart").GetDateTime();
             var endTime = evt.GetProperty("dateEnd").GetDateTime();
 
@@ -73,6 +72,26 @@ public class FrcEventsDataClient : IDataClient
     private static string GetSeason(Season season)
     {
         return season.StartTime.Year.ToString();
+    }
+
+    private static TimeZoneInfo NormalizeTimeZone(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return TimeZoneInfo.Utc;
+        }
+        
+        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(input, out var ianaId))
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(ianaId);
+        }
+        
+        if (TimeZoneInfo.TryFindSystemTimeZoneById(input, out var rawTz))
+        {
+            return rawTz;
+        }
+        
+        return TimeZoneInfo.Utc;
     }
 
     /// <summary>
