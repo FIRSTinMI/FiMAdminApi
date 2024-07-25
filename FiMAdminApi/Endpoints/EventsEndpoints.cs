@@ -19,16 +19,18 @@ public static class EventsEndpoints
 {
     public static WebApplication RegisterEventsEndpoints(this WebApplication app, ApiVersionSet vs)
     {
-        var eventsCreateGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/events")
+        var eventsGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/events")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Events")
             .RequireAuthorization();
 
-        eventsCreateGroup.MapPut("{id:guid}", UpdateBasicInfo)
+        eventsGroup.MapPut("{id:guid}", UpdateBasicInfo)
             .WithSummary("Update basic event info");
-        eventsCreateGroup.MapPut("{eventId:guid}/staffs", UpsertEventStaff)
+        eventsGroup.MapPut("{eventId:guid}/staffs", UpsertEventStaff)
             .WithSummary("Create or update a staff user for an event");
-        eventsCreateGroup.MapDelete("{eventId:guid}/staffs/{userId:guid}", DeleteEventStaff)
+        eventsGroup.MapDelete("{eventId:guid}/staffs/{userId:guid}", DeleteEventStaff)
             .WithSummary("Remove a staff user for an event");
+        eventsGroup.MapPost("{eventId:guid}/notes", CreateEventNote)
+            .WithSummary("Create an event note");
         
         return app;
     }
@@ -140,6 +142,41 @@ public static class EventsEndpoints
         return TypedResults.Ok();
     }
 
+    private static async Task<Results<Ok<EventNote>, NotFound, ForbidHttpResult, ValidationProblem>> CreateEventNote(
+        [FromRoute] Guid eventId,
+        [FromBody] CreateEventNoteRequest request,
+        [FromServices] DataContext dbContext,
+        ClaimsPrincipal user,
+        [FromServices] IAuthorizationService authSvc)
+    {
+        var (isValid, validationErrors) = await MiniValidator.TryValidateAsync(request);
+        if (!isValid) return TypedResults.ValidationProblem(validationErrors);
+        
+        if (!await dbContext.Events.AnyAsync(e => e.Id == eventId))
+            return TypedResults.NotFound();
+        
+        var isAuthorized = await authSvc.AuthorizeAsync(user, eventId, new EventAuthorizationRequirement
+        {
+            NeededEventPermission = EventPermission.Event_Note,
+            NeededGlobalPermission = GlobalPermission.Events_Note
+        });
+        if (!isAuthorized.Succeeded) return TypedResults.Forbid();
+        
+        var userId = user.Claims.FirstOrDefault(c => c.Type == "id");
+        var note = new EventNote
+        {
+            EventId = eventId,
+            Content = request.Content,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = Guid.TryParse(userId?.Value, out var guid) ? guid : Guid.Empty
+        };
+        dbContext.EventNotes.Add(note);
+
+        await dbContext.SaveChangesAsync();
+
+        return TypedResults.Ok(note);
+    }
+
     public class UpdateBasicInfoRequest
     {
         [Required]
@@ -169,5 +206,12 @@ public static class EventsEndpoints
 
         [Required]
         public ICollection<EventPermission> Permissions { get; set; } = new List<EventPermission>();
+    }
+
+    public class CreateEventNoteRequest
+    {
+        [Required]
+        [MaxLength(4000)]
+        public required string Content { get; set; }
     }
 }

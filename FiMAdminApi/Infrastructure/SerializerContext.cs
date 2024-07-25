@@ -13,8 +13,10 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(UpsertEventsService.UpsertEventsResponse))]
 [JsonSerializable(typeof(EventsEndpoints.UpdateBasicInfoRequest))]
 [JsonSerializable(typeof(EventsEndpoints.UpsertEventStaffRequest))]
+[JsonSerializable(typeof(EventsEndpoints.CreateEventNoteRequest))]
 [JsonSerializable(typeof(User[]))]
 [JsonSerializable(typeof(EventStaff))]
+[JsonSerializable(typeof(EventNote))]
 [JsonSerializable(typeof(HealthEndpoints.ThinHealthReport))]
 public partial class SerializerContext : JsonSerializerContext
 {
