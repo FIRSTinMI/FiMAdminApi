@@ -49,7 +49,7 @@ public class FrcEventsDataClient : IDataClient
         var resp = await _httpClient.SendAsync(BuildGetRequest($"{GetSeason(season)}/events", queryParams));
         resp.EnsureSuccessStatusCode();
 
-        using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
+        var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
         return json.RootElement.GetProperty("Events").EnumerateArray().Select(evt =>
         {
             var timeZone = NormalizeTimeZone(evt.GetProperty("timezone").GetString());
