@@ -24,13 +24,15 @@ public static class EventsEndpoints
             .RequireAuthorization();
 
         eventsGroup.MapPut("{id:guid}", UpdateBasicInfo)
-            .WithSummary("Update basic event info");
+            .WithDescription("Update basic event info");
+        eventsGroup.MapGet("{eventId:guid}/staffs", GetEventStaff)
+            .WithDescription("Get all staff for an event");
         eventsGroup.MapPut("{eventId:guid}/staffs", UpsertEventStaff)
-            .WithSummary("Create or update a staff user for an event");
+            .WithDescription("Create or update a staff user for an event");
         eventsGroup.MapDelete("{eventId:guid}/staffs/{userId:guid}", DeleteEventStaff)
-            .WithSummary("Remove a staff user for an event");
+            .WithDescription("Remove a staff user for an event");
         eventsGroup.MapPost("{eventId:guid}/notes", CreateEventNote)
-            .WithSummary("Create an event note");
+            .WithDescription("Create an event note");
         
         return app;
     }
@@ -67,6 +69,43 @@ public static class EventsEndpoints
         return TypedResults.Ok(evt);
     }
 
+    private static async Task<Results<Ok<EventStaffInfo[]>, NotFound, ForbidHttpResult>> GetEventStaff(
+        [FromRoute] Guid eventId,
+        [FromServices] DataContext dbContext,
+        [FromServices] IGotrueAdminClient<User> adminClient,
+        ClaimsPrincipal user,
+        [FromServices] IAuthorizationService authSvc)
+    {
+        if (!await dbContext.Events.AnyAsync(e => e.Id == eventId))
+            return TypedResults.NotFound();
+        
+        var isAuthorized = await authSvc.AuthorizeAsync(user, eventId, new EventAuthorizationRequirement
+        {
+            NeededEventPermission = EventPermission.Event_ManageStaff,
+            NeededGlobalPermission = GlobalPermission.Events_Manage
+        });
+        if (!isAuthorized.Succeeded) return TypedResults.Forbid();
+
+        var staffs = await dbContext.EventStaffs.Where(s => s.EventId == eventId).ToListAsync();
+        var profiles = await dbContext.Profiles.Where(p => staffs.Select(s => s.UserId).Contains(p.Id)).ToListAsync();
+
+        var staffInfo = new List<EventStaffInfo>();
+        foreach (var staff in staffs)
+        {
+            var staffUser = await adminClient.GetUserById(staff.UserId.ToString());
+            staffInfo.Add(new EventStaffInfo
+            (
+                staff.EventId,
+                staff.UserId,
+                staffUser?.Email,
+                profiles.FirstOrDefault(p => p.Id == staff.UserId)?.Name,
+                staff.Permissions
+            ));
+        }
+
+        return TypedResults.Ok(staffInfo.ToArray());
+    }
+    
     private static async Task<Results<Ok<EventStaff>, ForbidHttpResult, ValidationProblem>> UpsertEventStaff(
         [FromRoute] Guid eventId,
         [FromBody] UpsertEventStaffRequest request,
@@ -78,7 +117,7 @@ public static class EventsEndpoints
         var (_, validationErrors) = await MiniValidator.TryValidateAsync(request);
         if (!await dbContext.Events.AnyAsync(e => e.Id == eventId))
             validationErrors.Add("EventId", ["DoesNotExist"]);
-        if (await adminClient.GetUserById(request.UserId.ToString()) is not null)
+        if (await adminClient.GetUserById(request.UserId.ToString()) is null)
             validationErrors.Add("UserId", ["DoesNotExist"]);
         if (validationErrors.Count != 0) return TypedResults.ValidationProblem(validationErrors);
         
@@ -92,18 +131,21 @@ public static class EventsEndpoints
         var staffRecord =
             await dbContext.EventStaffs.FirstOrDefaultAsync(s => s.EventId == eventId && s.UserId == request.UserId);
         if (staffRecord is null)
+        {
             staffRecord = new EventStaff
             {
                 EventId = eventId,
                 UserId = request.UserId,
                 Permissions = request.Permissions
             };
+            dbContext.EventStaffs.Add(staffRecord);
+        }
         else
         {
             staffRecord.Permissions = request.Permissions;
+            dbContext.EventStaffs.Update(staffRecord);
         }
-
-        dbContext.EventStaffs.Update(staffRecord);
+        
         await dbContext.SaveChangesAsync();
 
         return TypedResults.Ok(staffRecord);
@@ -198,6 +240,13 @@ public static class EventsEndpoints
         [Required]
         public required EventStatus Status { get; set; }
     }
+
+    public record EventStaffInfo(
+        Guid EventId,
+        Guid UserId,
+        string? Email,
+        string? ProfileName,
+        IEnumerable<EventPermission>? Permissions);
 
     public class UpsertEventStaffRequest
     {

@@ -1,3 +1,4 @@
+using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,5 +17,15 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties(typeof(Enum)).HaveConversion<string>();
+        configurationBuilder.Properties(typeof(IEnumerable<Enum>)).HaveConversion<IEnumerable<string>>();
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder
+            .Entity<EventStaff>()
+            .Property(e => e.Permissions)
+            .HasConversion(v => v.Select(p => p.ToString()).ToList(),
+            v => v.Select(Enum.Parse<EventPermission>).ToList());
     }
 }

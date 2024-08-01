@@ -60,20 +60,19 @@ public static class ApiStartupExtensions
         }).ExcludeFromDescription();
 
         // Serve API documentation
-        // TODO: Update to `/openapi/v1.json` when OpenAPI is working
         app.MapGet("/docs", () =>
         {
             const string resp = """
-                                <html>
-                                <head>
-                                  <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
-                                  <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
-                                </head>
-                                <body>
-                                  <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash" basePath="/docs"/>
-                                </body>
-                                </html>
-                                """;
+<html>
+<head>
+  <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+</head>
+<body>
+  <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash" basePath="/docs"/>
+</body>
+</html>
+""";
     
             return Results.Content(resp, MediaTypeNames.Text.Html);
         }).ExcludeFromDescription();

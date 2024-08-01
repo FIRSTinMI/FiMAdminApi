@@ -16,6 +16,7 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(EventsEndpoints.CreateEventNoteRequest))]
 [JsonSerializable(typeof(User[]))]
 [JsonSerializable(typeof(EventStaff))]
+[JsonSerializable(typeof(EventsEndpoints.EventStaffInfo[]))]
 [JsonSerializable(typeof(EventNote))]
 [JsonSerializable(typeof(HealthEndpoints.ThinHealthReport))]
 public partial class SerializerContext : JsonSerializerContext

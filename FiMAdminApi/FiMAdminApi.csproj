@@ -16,7 +16,7 @@
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0-preview.6.24328.4" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0-preview.6.24328.4" />
         <PackageReference Include="MiniValidation" Version="0.9.1" />
-        <PackageReference Include="Supabase" Version="1.0.5" />
+        <PackageReference Include="Supabase" Version="1.1.1" />
         <PackageReference Include="System.Collections" Version="4.3.0" />
         <PackageReference Include="System.Text.Json" Version="9.0.0-preview.6.24327.7" />
     </ItemGroup>
