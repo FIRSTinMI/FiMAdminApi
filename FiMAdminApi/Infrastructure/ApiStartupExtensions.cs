@@ -25,18 +25,18 @@ public static class ApiStartupExtensions
 
         services.AddOpenApi(opt =>
         {
-            opt.UseTransformer((doc, _, _) =>
+            opt.AddDocumentTransformer((doc, _, _) =>
             {
                 doc.Info = new OpenApiInfo
                 {
                     Title = "FiM Admin API",
                     Description =
-                        "A collection of endpoints that require more stringent authorization or business logic",
+                        "A collection of endpoints that require more stringent authorization or business logic. Most read functionality should be handled by going directly to Supabase.",
                     Version = "v1"
                 };
                 return Task.CompletedTask;
             });
-            opt.UseTransformer<BearerSecuritySchemeTransformer>();
+            opt.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
         });
 
         return services;
@@ -81,7 +81,7 @@ public static class ApiStartupExtensions
     }
 }
 
-internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider) : IOpenApiDocumentTransformer
+internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider, IEnumerable<EndpointDataSource> endpoints) : IOpenApiDocumentTransformer
 {
     public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
     {
@@ -97,6 +97,12 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
                     Scheme = "bearer", // "bearer" refers to the header name here
                     In = ParameterLocation.Header,
                     BearerFormat = "Json Web Token"
+                },
+                ["Sync Secret"] = new OpenApiSecurityScheme()
+                {
+                    In = ParameterLocation.Header,
+                    Name = "X-fim-sync-secret",
+                    Type = SecuritySchemeType.ApiKey
                 }
             };
             document.Components ??= new OpenApiComponents();
@@ -107,7 +113,8 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
             {
                 operation.Value.Security.Add(new OpenApiSecurityRequirement
                 {
-                    [new OpenApiSecurityScheme { Reference = new OpenApiReference { Id = "Bearer", Type = ReferenceType.SecurityScheme } }] = Array.Empty<string>()
+                    [new OpenApiSecurityScheme { Reference = new OpenApiReference { Id = operation.Value.Tags.Any(t => t.Name == "Event Sync") ? "Sync Secret" : "Bearer", Type = ReferenceType.SecurityScheme } }] =
+                        Array.Empty<string>()
                 });
             }
         }

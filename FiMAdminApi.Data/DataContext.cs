@@ -12,10 +12,12 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<Event> Events { get; init; }
     public DbSet<EventNote> EventNotes { get; init; }
     public DbSet<EventStaff> EventStaffs { get; init; }
+    public DbSet<Match> Matches { get; set; }
     public DbSet<TruckRoute> TruckRoutes { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
+        configurationBuilder.Properties(typeof(TournamentLevel)).HaveConversion<TournamentLevel>();
         configurationBuilder.Properties(typeof(Enum)).HaveConversion<string>();
         configurationBuilder.Properties(typeof(IEnumerable<Enum>)).HaveConversion<IEnumerable<string>>();
     }

@@ -2,20 +2,22 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text.Json;
+using FiMAdminApi.Clients.Models;
 using FiMAdminApi.Data.Models;
 using FiMAdminApi.Extensions;
 using Event = FiMAdminApi.Clients.Models.Event;
 
 namespace FiMAdminApi.Clients;
 
-public class BlueAllianceDataClient : IDataClient
+public class BlueAllianceDataClient : RestClient, IDataClient
 {
     private readonly string _apiKey;
     private readonly Uri _baseUrl;
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<BlueAllianceDataClient> _logger;
 
     public BlueAllianceDataClient(IServiceProvider sp)
+        : base(
+            sp.GetRequiredService<ILogger<BlueAllianceDataClient>>(),
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance"))
     {
         var configSection = sp.GetRequiredService<IConfiguration>().GetRequiredSection("Clients:BlueAlliance");
         
@@ -28,29 +30,46 @@ public class BlueAllianceDataClient : IDataClient
         if (string.IsNullOrWhiteSpace(baseUrl))
             throw new ApplicationException("BlueAlliance BaseUrl was null but is required");
         _baseUrl = new Uri(baseUrl);
-        
-        _httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance");
-        _logger = sp.GetRequiredService<ILogger<BlueAllianceDataClient>>();
     }
 
     public async Task<Event?> GetEventAsync(Season season, string eventCode)
     {
-        var response = await _httpClient.SendAsync(BuildGetRequest($"event/{GetEventCode(season, eventCode)}"));
+        var response = await PerformRequest(BuildGetRequest($"event/{GetEventCode(season, eventCode)}"));
         response.EnsureSuccessStatusCode();
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-        
-        _logger.LogInformation(json.RootElement.GetRawText());
+        Logger.LogInformation(json.RootElement.GetRawText());
+
         return ParseEvent(json.RootElement);
     }
 
     public async Task<List<Event>> GetDistrictEventsAsync(Season season, string districtCode)
     {
         var response =
-            await _httpClient.SendAsync(BuildGetRequest($"district/{GetDistrictKey(season, districtCode)}/events"));
+            await PerformRequest(BuildGetRequest($"district/{GetDistrictKey(season, districtCode)}/events"));
         response.EnsureSuccessStatusCode();
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         return json.RootElement.EnumerateArray().Select(ParseEvent).ToList();
+    }
+
+    public Task<List<Team>> GetTeamsByNumbers(Season season, IEnumerable<string> teamNumbers)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<Team>> GetTeamsForEvent(Season season, string eventCode)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<ScheduledMatch>> GetQualScheduleForEvent(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<MatchResult>> GetQualResultsForEvent(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
     }
 
     private static string GetDistrictKey(Season season, string districtName)

@@ -5,11 +5,13 @@ using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Endpoints;
+using FiMAdminApi.EventSync;
 using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Npgsql.NameTranslation;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -45,16 +47,23 @@ if (connectionString is null)
     throw new ApplicationException("FiM Connection String is required");
 }
 
-builder.Services.AddNpgsql<DataContext>(connectionString, optionsAction: opt =>
+builder.Services.AddDbContext<DataContext>(opt =>
 {
     opt.UseSnakeCaseNamingConvention();
+    opt.UseNpgsql(connectionString,
+        o => o.MapEnum<TournamentLevel>("tournament_level", nameTranslator: new NpgsqlNullNameTranslator()));
 });
 
 // For authn/authz we're using tokens directly from Supabase. These tokens get validated by the supabase auth infrastructure
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddScheme<JwtBearerOptions, SupabaseJwtHandler>(JwtBearerDefaults.AuthenticationScheme, _ => { });
+    .AddScheme<JwtBearerOptions, SupabaseJwtHandler>(JwtBearerDefaults.AuthenticationScheme, _ => { })
+    .AddScheme<EventSyncAuthOptions, EventSyncAuthHandler>(EventSyncAuthHandler.EventSyncAuthScheme, _ => { });
 builder.Services.AddAuthorization(opt =>
 {
+    opt.AddPolicy(EventSyncAuthHandler.EventSyncAuthScheme,
+        pol => pol
+            .AddAuthenticationSchemes(EventSyncAuthHandler.EventSyncAuthScheme)
+            .RequireAuthenticatedUser());
     foreach (var permission in Enum.GetNames<GlobalPermission>())
     {
         opt.AddPolicy(permission, pol => pol
@@ -76,7 +85,9 @@ builder.Services.AddCors(opt =>
 });
 
 builder.Services.AddScoped<UpsertEventsService>();
+builder.Services.AddScoped<EventSyncService>();
 builder.Services.AddClients();
+builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
 
 var app = builder.Build();
@@ -97,6 +108,9 @@ app
     .RegisterHealthEndpoints()
     .RegisterUsersEndpoints(globalVs)
     .RegisterEventsCreateEndpoints(globalVs)
-    .RegisterEventsEndpoints(globalVs);
+    .RegisterEventsEndpoints(globalVs)
+    .RegisterTruckRotuesEndpoints(globalVs)
+    .RegisterEventSyncEndpoints(globalVs)
+    .RegisterMatchesEndpoints(globalVs);
 
 app.Run();
