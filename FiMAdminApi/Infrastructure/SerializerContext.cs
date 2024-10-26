@@ -22,6 +22,9 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(EventsEndpoints.EventStaffInfo[]))]
 [JsonSerializable(typeof(EventNote))]
 [JsonSerializable(typeof(HealthEndpoints.ThinHealthReport))]
+[JsonSerializable(typeof(TruckRoute))]
+[JsonSerializable(typeof(TruckRoutesEndpoints.CreateTruckRoute))]
+[JsonSerializable(typeof(TruckRoutesEndpoints.EditTruckRoute))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
