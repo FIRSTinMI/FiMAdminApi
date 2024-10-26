@@ -3,6 +3,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FiMAdminApi.Clients.Models;
+using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
 using FiMAdminApi.Extensions;
 
@@ -21,41 +23,36 @@ public class BlueAllianceWriteClient : RestClient
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
-    public BlueAllianceWriteClient(IServiceProvider sp)// : base(sp.GetRequiredService<ILogger<BlueAllianceWriteClient>>());
+    public BlueAllianceWriteClient(IServiceProvider sp)
         : base(
             sp.GetRequiredService<ILogger<BlueAllianceWriteClient>>(),
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance"))
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(DataSources.BlueAlliance.ToString()))
     {
         var configSection = sp.GetRequiredService<IConfiguration>().GetRequiredSection("Clients:BlueAllianceWrite");
         
         var authId = configSection["AuthId"];
         if (string.IsNullOrWhiteSpace(authId))
-            throw new ApplicationException("BlueAlliance ApiKey was null but is required");
+            throw new ApplicationException("BlueAllianceWrite ApiKey was null but is required");
         _authId = authId;
         
         var authSecret = configSection["AuthSecret"];
         if (string.IsNullOrWhiteSpace(authSecret))
-            throw new ApplicationException("BlueAlliance ApiKey was null but is required");
+            throw new ApplicationException("BlueAllianceWrite AuthSecret was null but is required");
         _authSecret = authSecret;
 
         var baseUrl = configSection["BaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl))
-            throw new ApplicationException("BlueAlliance BaseUrl was null but is required");
+            throw new ApplicationException("BlueAllianceWrite BaseUrl was null but is required");
         _baseUrl = new Uri(baseUrl);
         
         _httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance");
     }
 
-    public async Task UpdateEventInfo(Season season, string eventCode, string[] webcasts)
+    public async Task UpdateEventInfo(Season season, string eventCode, WebcastInfo[] webcastInfo)
     {
-        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/info/update", new List<object>
-        {
-            new
-            {
-                url = "todo",
-                date = (string?)null
-            }
-        });
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/info/update",
+            new EventInfoRequest(webcastInfo
+                .Select(w => new EventInfoWebcastInfo(w.Url, w.Date is not null ? $"{w.Date:O}" : null)).ToArray()));
 
         var response = await PerformRequest(request);
     }
@@ -82,4 +79,8 @@ public class BlueAllianceWriteClient : RestClient
     {
         return char.IsDigit(eventCode[0]) ? eventCode : $"{season.StartTime.Year}{eventCode}";
     }
+
+    private record EventInfoRequest(EventInfoWebcastInfo[] Webcasts);
+
+    private record EventInfoWebcastInfo(string Url, string? Date);
 }

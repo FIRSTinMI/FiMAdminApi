@@ -37,21 +37,26 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
             }
         }
 
-        if (evt.Status is EventStatus.QualsInProgress or EventStatus.AwaitingAlliances)
-        {
-            // Update matches that have already happened
-            var existingQualMatches = await dbContext.Matches.Where(m =>
-                m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Qualification).ToListAsync();
-
-
-            // any matches that aren't already "done" but are finished according to the API should get their actual and post times set.
-            // matches that are done should be checked for data matching, then discard and create a new record if they don't
-        }
-
         await dbContext.SaveChangesAsync();
+
+        return new EventSyncResult(true);
+    }
+
+    public async Task<EventSyncResult> ForceEventSyncStep(Event evt, string syncStepName)
+    {
+        if (evt.Season is null) throw new ArgumentException("Event season data is missing");
+        if (evt.SyncSource is null || evt.Code is null) throw new ArgumentException("Event not set up for syncing");
+
+        var dataSource = services.GetRequiredKeyedService<IDataClient>(evt.SyncSource);
+
+        var syncStep = services.GetServices<EventSyncStep>().FirstOrDefault(s => s.GetType().Name == syncStepName);
+
+        if (syncStep is null) return new EventSyncResult(false, "Unable to find sync step");
+
+        await syncStep.RunStep(evt, dataSource);
 
         return new EventSyncResult(true);
     }
 }
 
-public record EventSyncResult(bool Success);
+public record EventSyncResult(bool Success, string? Message = null);

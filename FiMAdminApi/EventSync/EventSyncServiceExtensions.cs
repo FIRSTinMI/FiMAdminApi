@@ -10,7 +10,8 @@ public static class EventSyncServiceExtensions
         {
             typeof(InitialSync),
             typeof(LoadQualSchedule),
-            typeof(UpdateQualResults)
+            typeof(UpdateQualResults),
+            typeof(UpdateQualRankings)
         };
 
         foreach (var step in steps)

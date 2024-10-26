@@ -14,4 +14,5 @@ public interface IDataClient
     public Task<List<Team>> GetTeamsForEvent(Season season, string eventCode);
     public Task<List<ScheduledMatch>> GetQualScheduleForEvent(Data.Models.Event evt);
     public Task<List<MatchResult>> GetQualResultsForEvent(Data.Models.Event evt);
+    public Task<List<QualRanking>> GetQualRankingsForEvent(Data.Models.Event evt);
 }

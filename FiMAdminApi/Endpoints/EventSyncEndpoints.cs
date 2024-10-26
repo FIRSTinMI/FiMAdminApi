@@ -2,7 +2,6 @@ using Asp.Versioning.Builder;
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.EventSync;
-using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +18,7 @@ public static class EventSyncEndpoints
 
         eventsGroup.MapPut("{eventId:guid}", SyncSingleEvent)
             .WithDescription("Sync single event");
+        eventsGroup.MapPut("{eventId:guid}/force/{syncStepName}", ForceEventSyncStep);
         eventsGroup.MapPut("{eventId:guid}/teams", SyncEventTeams)
             .WithDescription("Sync single event");
         eventsGroup.MapPut("current", SyncCurrentEvents)
@@ -27,7 +27,20 @@ public static class EventSyncEndpoints
         return app;
     }
 
-    private static async Task<Results<Ok<EventSyncResult>, NotFound, BadRequest<string>>> SyncSingleEvent([FromRoute] Guid eventId, [FromServices] DataContext context, [FromServices] EventSyncService service)
+    private static async Task<Results<Ok<EventSyncResult>, NotFound, BadRequest<string>>> SyncSingleEvent(
+        [FromRoute] Guid eventId, [FromServices] DataContext context, [FromServices] EventSyncService service)
+    {
+        var evt = await context.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        if (evt is null) return TypedResults.NotFound();
+
+        if (string.IsNullOrEmpty(evt.Code) || evt.SyncSource is null)
+            return TypedResults.BadRequest("Event does not have a sync source");
+
+        return TypedResults.Ok(await service.SyncEvent(evt));
+    }
+    
+    private static async Task<Results<Ok<EventSyncResult>, NotFound, BadRequest<string>>> ForceEventSyncStep(
+        [FromRoute] Guid eventId, [FromRoute] string syncStepName, [FromServices] DataContext context, [FromServices] EventSyncService service)
     {
         var evt = await context.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
         if (evt is null) return TypedResults.NotFound();
@@ -38,12 +51,31 @@ public static class EventSyncEndpoints
         return TypedResults.Ok(await service.SyncEvent(evt));
     }
 
-    private static async Task SyncCurrentEvents()
+    private static async Task<Ok<EventSyncResult>> SyncCurrentEvents([FromServices] DataContext context,
+        [FromServices] EventSyncService syncService)
     {
-        throw new NotImplementedException();
+        var events = context.Events.Include(e => e.Season).Where(e =>
+            e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).AsAsyncEnumerable();
+
+        var isSuccess = true;
+        var successLock = new Lock();
+        await Parallel.ForEachAsync(events, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = 5
+        }, async (e, _) =>
+        {
+            var individualResult = await syncService.SyncEvent(e);
+            lock (successLock)
+            {
+                if (!individualResult.Success) isSuccess = false;
+            }
+        });
+
+        return TypedResults.Ok(new EventSyncResult(isSuccess));
     }
 
-    private static async Task<Results<NotFound, Ok, ProblemHttpResult>> SyncEventTeams([FromRoute] Guid eventId, [FromServices] IServiceProvider services, [FromServices] DataContext context)
+    private static async Task<Results<NotFound, Ok, ProblemHttpResult>> SyncEventTeams([FromRoute] Guid eventId,
+        [FromServices] IServiceProvider services, [FromServices] DataContext context)
     {
         var evt = await context.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
         if (evt is null) return TypedResults.NotFound();
@@ -53,7 +85,7 @@ public static class EventSyncEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
 
         var dataClient = services.GetRequiredKeyedService<IDataClient>(evt.SyncSource);
-        
+
         // TODO: Do something with this data
         await dataClient.GetTeamsForEvent(evt.Season!, evt.Code);
 

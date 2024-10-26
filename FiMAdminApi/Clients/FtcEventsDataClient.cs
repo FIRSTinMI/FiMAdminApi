@@ -74,7 +74,12 @@ public class FtcEventsDataClient : RestClient, IDataClient
     {
         throw new NotImplementedException();
     }
-    
+
+    public Task<List<QualRanking>> GetQualRankingsForEvent(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
     private static string GetSeason(Season season)
     {
         return season.StartTime.Year.ToString();

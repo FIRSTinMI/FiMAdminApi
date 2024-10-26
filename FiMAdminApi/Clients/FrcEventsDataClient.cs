@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
@@ -116,6 +117,34 @@ public class FrcEventsDataClient : RestClient, IDataClient
                 ActualStartTime = utcActualStart,
                 PostResultTime = utcPostResult,
             };
+        }).ToList();
+    }
+
+    public async Task<List<QualRanking>> GetQualRankingsForEvent(Data.Models.Event evt)
+    {
+        Debug.Assert(evt.Season is not null, "evt.Season is null, ensure it's included in DB fetches");
+
+        var resp = await PerformRequest(BuildGetRequest($"{GetSeason(evt.Season)}/rankings/{evt.Code}"));
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
+
+        return json.GetProperty("Rankings").EnumerateArray().Select(r => new QualRanking
+        {
+            Rank = r.GetProperty("rank").GetInt32(),
+            TeamNumber = r.GetProperty("teamNumber").GetInt32(),
+            SortOrder1 = r.GetProperty("sortOrder1").GetDouble(),
+            SortOrder2 = r.GetProperty("sortOrder2").GetDouble(),
+            SortOrder3 = r.GetProperty("sortOrder3").GetDouble(),
+            SortOrder4 = r.GetProperty("sortOrder4").GetDouble(),
+            SortOrder5 = r.GetProperty("sortOrder5").GetDouble(),
+            SortOrder6 = r.GetProperty("sortOrder6").GetDouble(),
+            Wins = r.GetProperty("wins").GetInt32(),
+            Ties = r.GetProperty("ties").GetInt32(),
+            Losses = r.GetProperty("losses").GetInt32(),
+            QualAverage = r.GetProperty("qualAverage").GetDouble(),
+            Disqualifications = r.GetProperty("dq").GetInt32(),
+            MatchesPlayed = r.GetProperty("matchesPlayed").GetInt32()
         }).ToList();
     }
 

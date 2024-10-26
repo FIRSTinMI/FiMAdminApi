@@ -72,6 +72,11 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         throw new NotImplementedException();
     }
 
+    public Task<List<QualRanking>> GetQualRankingsForEvent(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
     private static string GetDistrictKey(Season season, string districtName)
     {
         return char.IsDigit(districtName[0]) ? districtName : $"{season.StartTime.Year}{districtName}";
