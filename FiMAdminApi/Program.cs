@@ -109,7 +109,7 @@ app
     .RegisterUsersEndpoints(globalVs)
     .RegisterEventsCreateEndpoints(globalVs)
     .RegisterEventsEndpoints(globalVs)
-    .RegisterTruckRotuesEndpoints(globalVs)
+    .RegisterTruckRoutesEndpoints(globalVs)
     .RegisterEventSyncEndpoints(globalVs)
     .RegisterMatchesEndpoints(globalVs);
 

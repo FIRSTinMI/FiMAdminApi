@@ -14,7 +14,7 @@ namespace FiMAdminApi.Endpoints;
 
 public static class TruckRoutesEndpoints
 {
-    public static WebApplication RegisterTruckRotuesEndpoints(this WebApplication app, ApiVersionSet vs)
+    public static WebApplication RegisterTruckRoutesEndpoints(this WebApplication app, ApiVersionSet vs)
     {
         var truckRoutesGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/routes").WithApiVersionSet(vs)
             .HasApiVersion(1).WithTags("Truck Routes").RequireAuthorization(nameof(GlobalPermission.Equipment_Manage));
@@ -72,22 +72,12 @@ public static class TruckRoutesEndpoints
     public class CreateTruckRoute
     {
         [Required]
-        public string Name { get; set; }
+        public required string Name { get; set; }
     }
     
     public class EditTruckRoute
     {
         [Required]
-        public string Name { get; set; }
+        public required string Name { get; set; }
     }
-    
-    // private static async Task<Ok<Team>> GetTeam([FromRoute] int teamId, [FromRoute] int seasonYear, [FromServices] IServiceProvider sp)
-    // {
-    //     var client = sp.GetKeyedService<IDataClient>("FrcEvents");
-    //     
-    //     return client.GetTeamsByNumbers(new Season()
-    //     {
-    //         StartTime = new DateTime(seasonYear, 1, 2)
-    //     }, [])
-    // }
 }
