@@ -69,7 +69,7 @@ public static class ApiStartupExtensions
   <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
 </head>
 <body>
-  <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash" basePath="/docs"/>
+  <elements-api apiDescriptionUrl="/openapi/v1.json" router="hash"/>
 </body>
 </html>
 """;

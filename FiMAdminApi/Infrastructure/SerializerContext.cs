@@ -1,4 +1,3 @@
-using System.Collections.Specialized;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FiMAdminApi.Data.Models;
@@ -25,6 +24,8 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(TruckRoute))]
 [JsonSerializable(typeof(TruckRoutesEndpoints.CreateTruckRoute))]
 [JsonSerializable(typeof(TruckRoutesEndpoints.EditTruckRoute))]
+[JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenRequest))]
+[JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenResponse))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
