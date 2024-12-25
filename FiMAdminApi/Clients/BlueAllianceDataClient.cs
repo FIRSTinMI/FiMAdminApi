@@ -77,6 +77,15 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         throw new NotImplementedException();
     }
 
+    public async Task<string?> CheckHealth()
+    {
+        var resp = await PerformRequest(BuildGetRequest($"status"));
+
+        if (resp.IsSuccessStatusCode) return null;
+
+        return await resp.Content.ReadAsStringAsync();
+    }
+
     private static string GetDistrictKey(Season season, string districtName)
     {
         return char.IsDigit(districtName[0]) ? districtName : $"{season.StartTime.Year}{districtName}";

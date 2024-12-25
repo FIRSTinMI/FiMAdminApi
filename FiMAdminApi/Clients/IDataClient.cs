@@ -15,4 +15,5 @@ public interface IDataClient
     public Task<List<ScheduledMatch>> GetQualScheduleForEvent(Data.Models.Event evt);
     public Task<List<MatchResult>> GetQualResultsForEvent(Data.Models.Event evt);
     public Task<List<QualRanking>> GetQualRankingsForEvent(Data.Models.Event evt);
+    public Task<string?> CheckHealth();
 }

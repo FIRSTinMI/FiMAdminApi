@@ -148,6 +148,15 @@ public class FrcEventsDataClient : RestClient, IDataClient
         }).ToList();
     }
 
+    public async Task<string?> CheckHealth()
+    {
+        var resp = await PerformRequest(BuildGetRequest($""));
+        
+        if (resp.IsSuccessStatusCode) return null;
+
+        return await resp.Content.ReadAsStringAsync();
+    }
+
     private async Task<IEnumerable<Event>> GetAndParseEvents(Season season, string? eventCode = null, string? districtCode = null)
     {
         var queryParams = new Dictionary<string, string>();

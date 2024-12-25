@@ -79,6 +79,15 @@ public class FtcEventsDataClient : RestClient, IDataClient
     {
         throw new NotImplementedException();
     }
+    
+    public async Task<string?> CheckHealth()
+    {
+        var resp = await PerformRequest(BuildGetRequest($""));
+        
+        if (resp.IsSuccessStatusCode) return null;
+
+        return await resp.Content.ReadAsStringAsync();
+    }
 
     private static string GetSeason(Season season)
     {

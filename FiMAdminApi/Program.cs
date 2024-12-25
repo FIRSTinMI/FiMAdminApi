@@ -37,8 +37,10 @@ if (!string.IsNullOrEmpty(dpDir))
     builder.Services.AddDataProtection().PersistKeysToFileSystem(dirInfo);
 }
 
-builder.Services.AddHealthChecks().AddNpgSql(builder.Configuration.GetConnectionString("fimDbConnection") ??
-                                             throw new Exception("DB Connection string was null"), name: "Database");
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("fimDbConnection") ??
+                                             throw new Exception("DB Connection string was null"), name: "Database")
+    .AddClientHealthChecks();
 
 var key = builder.Configuration["Supabase:ServiceKey"];
 var supabaseUrl = builder.Configuration["Supabase:BaseUrl"];
@@ -105,7 +107,9 @@ var app = builder.Build();
 app.UseOutputCache();
 app.UseApiConfiguration();
 
-app.UseHttpsRedirection();
+if (!bool.TryParse(app.Configuration["RUNNING_IN_CONTAINER"], out var inContainer) ||
+    !inContainer)
+    app.UseHttpsRedirection();
 app.UseCors();
 
 app.UseApiDocumentation();

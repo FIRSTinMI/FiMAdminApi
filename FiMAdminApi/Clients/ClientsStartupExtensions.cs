@@ -1,4 +1,5 @@
 using FiMAdminApi.Data.Enums;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace FiMAdminApi.Clients;
 
@@ -16,5 +17,16 @@ public static class ClientsStartupExtensions
         services.AddKeyedScoped<IDataClient, BlueAllianceDataClient>(DataSources.BlueAlliance);
         services.AddKeyedScoped<IDataClient, FtcEventsDataClient>(DataSources.FtcEvents);
         services.AddScoped<BlueAllianceWriteClient>();
+    }
+
+    public static IHealthChecksBuilder AddClientHealthChecks(this IHealthChecksBuilder builder)
+    {
+        foreach (var source in Enum.GetValues<DataSources>())
+        {
+            builder.AddTypeActivatedCheck<ClientHealthCheck>(source.ToString(), HealthStatus.Degraded,
+                new[] { "DataClient" }, source);
+        }
+
+        return builder;
     }
 }
