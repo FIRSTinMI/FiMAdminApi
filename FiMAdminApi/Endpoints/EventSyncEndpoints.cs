@@ -1,4 +1,5 @@
 using Asp.Versioning.Builder;
+using FiMAdminApi.Auth;
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.EventSync;
@@ -52,7 +53,7 @@ public static class EventSyncEndpoints
     }
 
     private static async Task<Ok<EventSyncResult>> SyncCurrentEvents([FromServices] DataContext context,
-        [FromServices] EventSyncService syncService, [FromServices] ILogger logger)
+        [FromServices] EventSyncService syncService, [FromServices] ILoggerFactory loggerFactory)
     {
         var events = context.Events.Include(e => e.Season).Where(e =>
             e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).AsAsyncEnumerable();
@@ -67,7 +68,8 @@ public static class EventSyncEndpoints
             var individualResult = await syncService.SyncEvent(e);
             if (!individualResult.Success)
             {
-                logger.LogWarning("Sync for event {EventCode} failed: {Message}", e.Code ?? e.Id.ToString(),
+                loggerFactory.CreateLogger(typeof(EventSyncEndpoints)).LogWarning(
+                    "Sync for event {EventCode} failed: {Message}", e.Code ?? e.Id.ToString(),
                     individualResult.Message ?? "No message provided");
                 lock (successLock)
                 {
