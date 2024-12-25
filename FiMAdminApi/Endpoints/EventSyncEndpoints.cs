@@ -55,8 +55,8 @@ public static class EventSyncEndpoints
     private static async Task<Ok<EventSyncResult>> SyncCurrentEvents([FromServices] DataContext context,
         [FromServices] EventSyncService syncService, [FromServices] ILoggerFactory loggerFactory)
     {
-        var events = context.Events.Include(e => e.Season).Where(e =>
-            e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).AsAsyncEnumerable();
+        var events = await context.Events.Include(e => e.Season).Where(e =>
+            e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).ToListAsync();
 
         var isSuccess = true;
         var successLock = new Lock();
