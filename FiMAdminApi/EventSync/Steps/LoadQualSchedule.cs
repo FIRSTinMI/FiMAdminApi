@@ -35,6 +35,8 @@ public class LoadQualSchedule(DataContext dbContext) : EventSyncStep([EventStatu
             }));
 
             evt.Status = EventStatus.QualsInProgress;
+
+            await dbContext.SaveChangesAsync();
         }
     }
 }

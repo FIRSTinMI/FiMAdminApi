@@ -10,22 +10,32 @@ using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.NameTranslation;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
+builder.Logging.AddConsole(opt =>
+{
+    builder.Configuration.GetSection("Logging:Console").Bind(opt);
+});
+
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    // options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
     options.SerializerOptions.TypeInfoResolver = SerializerContext.Default;
 });
-// builder.Services.AddControllers().AddJsonOptions(opt =>
-// {
-//     opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-// });
 
 builder.Services.AddApiConfiguration();
+
+// If a data protection directory is not provided, just use the default configuration
+var dpDir = builder.Configuration["DataProtectionDirectory"];
+if (!string.IsNullOrEmpty(dpDir))
+{
+    var dirInfo = new DirectoryInfo(dpDir);
+    if (!dirInfo.Exists) throw new ApplicationException($"Data protection directory {dpDir} does not exist");
+    builder.Services.AddDataProtection().PersistKeysToFileSystem(dirInfo);
+}
 
 builder.Services.AddHealthChecks().AddNpgSql(builder.Configuration.GetConnectionString("fimDbConnection") ??
                                              throw new Exception("DB Connection string was null"), name: "Database");

@@ -1,6 +1,7 @@
 using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace FiMAdminApi.Data;
 
@@ -28,6 +29,9 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
             .Entity<EventStaff>()
             .Property(e => e.Permissions)
             .HasConversion(v => v.Select(p => p.ToString()).ToList(),
-            v => v.Select(Enum.Parse<EventPermission>).ToList());
+                v => v.Select(Enum.Parse<EventPermission>).ToList(),
+                new ValueComparer<List<EventPermission>>((c1, c2) => c2 != null && c1 != null && c1.SequenceEqual(c2),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
     }
 }
