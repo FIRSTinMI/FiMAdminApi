@@ -1,8 +1,6 @@
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
-using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync;
 
@@ -12,10 +10,16 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
     /// Attempt to run <see cref="EventSyncStep"/>s against an event until the status of the event stabilizes. A given
     /// step will be run at most once in a sync.
     /// </summary>
+    /// <remarks>
+    /// Nothing in this method should throw. Instead, it should return a sync result reporting not successful and a
+    /// message. This ensures that processes which want to sync many events are not short-circuited if one fails.
+    /// </remarks>
     public async Task<EventSyncResult> SyncEvent(Event evt)
     {
-        if (evt.Season is null) throw new ArgumentException("Event season data is missing");
-        if (evt.SyncSource is null || evt.Code is null) throw new ArgumentException("Event not set up for syncing");
+        if (evt.Season is null)
+            return new EventSyncResult(false, "Event season data is missing");
+        if (evt.SyncSource is null || evt.Code is null)
+            return new EventSyncResult(false, "Event not set up for syncing");
 
         var dataSource = services.GetRequiredKeyedService<IDataClient>(evt.SyncSource);
 
@@ -33,7 +37,14 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
                     evt.Code);
                 alreadyRunSteps.Add(step.GetType());
                 runAgain = true;
-                await step.RunStep(evt, dataSource);
+                try
+                {
+                    await step.RunStep(evt, dataSource);
+                }
+                catch (Exception ex)
+                {
+                    return new EventSyncResult(false, ex.Message);
+                }
             }
         }
 

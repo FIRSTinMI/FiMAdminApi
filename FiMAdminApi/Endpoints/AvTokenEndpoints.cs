@@ -39,7 +39,7 @@ public static class AvTokenEndpoints
         var jwtSecret = configuration["Auth:JwtSecret"] ??
                         throw new ApplicationException("Unable to get JWT secret from configuration");
 
-        List<Claim> claims = [new Claim("eventName", evt.Name), new Claim("eventKey", evt.Key)];
+        List<Claim> claims = [new Claim("eventId", evt.Id.ToString()), new Claim("eventKey", evt.Key)];
         if (evt.Code is not null) claims.Add(new Claim("eventCode", evt.Code));
 
         var maxAllowableExpiry = DateTime.UtcNow.AddDays(7);

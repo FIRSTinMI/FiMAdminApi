@@ -52,7 +52,7 @@ public static class EventSyncEndpoints
     }
 
     private static async Task<Ok<EventSyncResult>> SyncCurrentEvents([FromServices] DataContext context,
-        [FromServices] EventSyncService syncService)
+        [FromServices] EventSyncService syncService, [FromServices] ILogger logger)
     {
         var events = context.Events.Include(e => e.Season).Where(e =>
             e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).AsAsyncEnumerable();
@@ -65,9 +65,14 @@ public static class EventSyncEndpoints
         }, async (e, _) =>
         {
             var individualResult = await syncService.SyncEvent(e);
-            lock (successLock)
+            if (!individualResult.Success)
             {
-                if (!individualResult.Success) isSuccess = false;
+                logger.LogWarning("Sync for event {EventCode} failed: {Message}", e.Code ?? e.Id.ToString(),
+                    individualResult.Message ?? "No message provided");
+                lock (successLock)
+                {
+                    isSuccess = false;
+                }
             }
         });
 

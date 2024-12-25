@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -37,6 +38,16 @@ public class SupabaseJwtHandler : JwtBearerHandler
         }
 
         var token = authorizationHeader["Bearer ".Length..].Trim();
+        
+        // Sanity check the token before we send it off to Supabase
+        try
+        {
+            _ = new JwtSecurityToken(token);
+        }
+        catch (Exception)
+        {
+            return AuthenticateResult.Fail("JWT was not in a valid format");
+        }
 
         // Call the API to validate the token
         User user;
@@ -46,7 +57,7 @@ public class SupabaseJwtHandler : JwtBearerHandler
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Exception thrown while validating token");
+            Logger.LogInformation(ex, "Exception thrown while validating token");
             return AuthenticateResult.Fail("Token validation failed.");
         }
         
