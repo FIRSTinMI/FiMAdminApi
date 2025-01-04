@@ -24,6 +24,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
         var season = await GetAndValidateSeason(request.SeasonId, response);
         if (season is null)
         {
+            response.Errors.Add("Season not found");
             return response;
         }
 
@@ -32,7 +33,8 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
         var dataClient = services.GetKeyedService<IDataClient>(request.DataSource);
         if (dataClient is null)
         {
-            throw new ArgumentOutOfRangeException();
+            response.Errors.Add($"Unable to initialize data client {request.DataSource}");
+            return response;
         }
 
         List<Clients.Models.Event> apiEvents;
@@ -86,7 +88,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
                     Key = GenerateEventKey(),
                     Code = apiEvent.EventCode,
                     Name = apiEvent.Name,
-                    IsOfficial = false,
+                    IsOfficial = request.DataSource is DataSources.FrcEvents or DataSources.FtcEvents,
                     StartTime = apiEvent.StartTime.UtcDateTime.AddDays(-1),
                     EndTime = apiEvent.EndTime.UtcDateTime,
                     TimeZone = apiEvent.TimeZone.Id,

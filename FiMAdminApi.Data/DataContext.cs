@@ -13,7 +13,9 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<Event> Events { get; init; }
     public DbSet<EventNote> EventNotes { get; init; }
     public DbSet<EventStaff> EventStaffs { get; init; }
-    public DbSet<Match> Matches { get; set; }
+    public DbSet<EventRanking> EventRankings { get; init; }
+    public DbSet<Match> Matches { get; init; }
+    public DbSet<ScheduleDeviation> ScheduleDeviations { get; init; }
     public DbSet<TruckRoute> TruckRoutes { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

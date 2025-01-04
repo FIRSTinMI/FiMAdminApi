@@ -49,7 +49,7 @@ public static class EventSyncEndpoints
         if (string.IsNullOrEmpty(evt.Code) || evt.SyncSource is null)
             return TypedResults.BadRequest("Event does not have a sync source");
 
-        return TypedResults.Ok(await service.SyncEvent(evt));
+        return TypedResults.Ok(await service.ForceEventSyncStep(evt, syncStepName));
     }
 
     private static async Task<Ok<EventSyncResult>> SyncCurrentEvents([FromServices] DataContext context,

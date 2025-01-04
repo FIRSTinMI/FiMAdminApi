@@ -26,8 +26,8 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
         var syncSteps = services.GetServices<EventSyncStep>().ToList();
         var alreadyRunSteps = new List<Type>();
 
-        var runAgain = true; // We want to run until we're able to go a full iteration without running any steps.
-        while (runAgain)
+        bool runAgain; // We want to run until we're able to go a full iteration without running any steps.
+        do
         {
             runAgain = false;
             foreach (var step in syncSteps.Where(s =>
@@ -46,7 +46,7 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
                     return new EventSyncResult(false, ex.Message);
                 }
             }
-        }
+        } while (runAgain);
 
         await dbContext.SaveChangesAsync();
 
@@ -64,9 +64,15 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
 
         if (syncStep is null) return new EventSyncResult(false, "Unable to find sync step");
 
-        await syncStep.RunStep(evt, dataSource);
-
-        return new EventSyncResult(true);
+        try
+        {
+            await syncStep.RunStep(evt, dataSource);
+            return new EventSyncResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new EventSyncResult(false, ex.Message);
+        }
     }
 }
 

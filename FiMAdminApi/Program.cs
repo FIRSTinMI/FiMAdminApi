@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql.NameTranslation;
 
 var builder = WebApplication.CreateSlimBuilder(args);
-
+// builder.Logging.ClearProviders();
 builder.Logging.AddConsole(opt =>
 {
     builder.Configuration.GetSection("Logging:Console").Bind(opt);
