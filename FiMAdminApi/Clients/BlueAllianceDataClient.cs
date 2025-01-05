@@ -136,6 +136,8 @@ public class BlueAllianceDataClient : RestClient, IDataClient
     /// </summary>
     private HttpRequestMessage BuildGetRequest(FormattableString endpoint, Dictionary<string, string>? queryParams = default)
     {
+        Logger.LogWarning("TBA is not fully supported at this time. Some data may not sync properly.");
+        
         var request = new HttpRequestMessage();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
         request.Headers.Add("X-TBA-Auth-Key", _apiKey);
