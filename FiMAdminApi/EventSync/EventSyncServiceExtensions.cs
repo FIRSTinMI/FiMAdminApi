@@ -9,6 +9,7 @@ public static class EventSyncServiceExtensions
         var steps = new[]
         {
             typeof(InitialSync),
+            typeof(PopulateEventTeams),
             typeof(LoadQualSchedule),
             typeof(UpdateQualResults),
             typeof(UpdateQualRankings),
