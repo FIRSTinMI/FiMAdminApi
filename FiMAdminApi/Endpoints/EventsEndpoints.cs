@@ -5,6 +5,7 @@ using FiMAdminApi.Auth;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
+using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +34,10 @@ public static class EventsEndpoints
             .WithDescription("Remove a staff user for an event");
         eventsGroup.MapPost("{eventId:guid}/notes", CreateEventNote)
             .WithDescription("Create an event note");
+        eventsGroup.MapPut("{eventId:guid}/teams", RefreshEventTeams)
+            .WithDescription("Refresh event teams");
+        eventsGroup.MapPut("{eventId:guid}/teams/{eventTeamId:int}", UpdateEventTeam)
+            .WithDescription("Update event team");
         
         return app;
     }
@@ -218,6 +223,66 @@ public static class EventsEndpoints
 
         return TypedResults.Ok(note);
     }
+    
+    private static async Task<Results<Ok, NotFound, ForbidHttpResult>> RefreshEventTeams(
+        [FromRoute] Guid eventId,
+        [FromServices] DataContext dbContext,
+        [FromServices] EventTeamsService teamsService,
+        ClaimsPrincipal user,
+        [FromServices] IAuthorizationService authSvc)
+    {
+        var evt = await dbContext.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        if (evt is null)
+            return TypedResults.NotFound();
+        
+        var isAuthorized = await authSvc.AuthorizeAsync(user, eventId, new EventAuthorizationRequirement
+        {
+            NeededEventPermission = EventPermission.Event_ManageTeams,
+            NeededGlobalPermission = GlobalPermission.Events_Manage
+        });
+        if (!isAuthorized.Succeeded) return TypedResults.Forbid();
+
+        await teamsService.UpsertEventTeams(evt);
+
+        return TypedResults.Ok();
+    }
+    
+    private static async Task<Results<Ok<EventTeam>, NotFound, ForbidHttpResult, ValidationProblem>> UpdateEventTeam(
+        [FromRoute] Guid eventId,
+        [FromRoute] int eventTeamId,
+        [FromBody] UpdateEventTeamRequest request,
+        [FromServices] DataContext dbContext,
+        ClaimsPrincipal user,
+        [FromServices] IAuthorizationService authSvc)
+    {
+        var (isValid, validationErrors) = await MiniValidator.TryValidateAsync(request);
+        if (!isValid) return TypedResults.ValidationProblem(validationErrors);
+        
+        var evt = await dbContext.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        if (evt is null)
+            return TypedResults.NotFound();
+        
+        var isAuthorized = await authSvc.AuthorizeAsync(user, eventId, new EventAuthorizationRequirement
+        {
+            NeededEventPermission = EventPermission.Event_ManageTeams,
+            NeededGlobalPermission = GlobalPermission.Events_Manage
+        });
+        if (!isAuthorized.Succeeded) return TypedResults.Forbid();
+
+        var eventTeam = await dbContext.EventTeams.FirstOrDefaultAsync(t => t.EventId == evt.Id && t.Id == eventTeamId);
+        if (eventTeam is null)
+            return TypedResults.NotFound();
+        
+        eventTeam.StatusId = request.StatusId;
+        eventTeam.Notes = request.Notes;
+
+        await dbContext.SaveChangesAsync();
+        
+        // Make sure we have the new status in the object we return
+        await dbContext.Entry(eventTeam).Reference(t => t.Status).LoadAsync();
+
+        return TypedResults.Ok(eventTeam);
+    }
 
     public class UpdateBasicInfoRequest
     {
@@ -262,5 +327,29 @@ public static class EventsEndpoints
         [Required]
         [MaxLength(4000)]
         public required string Content { get; set; }
+    }
+    
+    public class UpdateEventTeamRequest : IValidatableObject
+    {
+        [Required]
+        [MaxLength(100)]
+        public required string StatusId { get; set; }
+        
+        [MaxLength(4000)]
+        public string? Notes { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var matchingStatus = validationContext.GetRequiredService<DataContext>().EventTeamStatuses
+                .Where(s => s.Id == StatusId).Select(s => s.Id).FirstOrDefault();
+            if (string.IsNullOrEmpty(matchingStatus))
+            {
+                yield return new ValidationResult($"Unknown status '{StatusId}'.", new[] { nameof(StatusId) });
+            }
+            else
+            {
+                StatusId = matchingStatus;
+            }
+        }
     }
 }

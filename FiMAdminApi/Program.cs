@@ -15,7 +15,6 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql.NameTranslation;
 
 var builder = WebApplication.CreateSlimBuilder(args);
-// builder.Logging.ClearProviders();
 builder.Logging.AddConsole(opt =>
 {
     builder.Configuration.GetSection("Logging:Console").Bind(opt);
@@ -66,7 +65,8 @@ builder.Services.AddDbContext<DataContext>(opt =>
         o => o.MapEnum<TournamentLevel>("tournament_level", nameTranslator: new NpgsqlNullNameTranslator()));
 });
 
-// For authn/authz we're using tokens directly from Supabase. These tokens get validated by the supabase auth infrastructure
+// For most authn/authz we're using tokens directly from Supabase. These tokens get validated by the supabase auth
+// infrastructure
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddScheme<JwtBearerOptions, SupabaseJwtHandler>(JwtBearerDefaults.AuthenticationScheme, _ => { })
     .AddScheme<EventSyncAuthOptions, EventSyncAuthHandler>(EventSyncAuthHandler.EventSyncAuthScheme, _ => { });
@@ -89,7 +89,8 @@ builder.Services.AddCors(opt =>
 {
     opt.AddDefaultPolicy(pol =>
     {
-        pol.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? (string[])["http://localhost:5173"]);
+        pol.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ??
+                        (string[]) ["http://localhost:5173"]);
         pol.AllowCredentials();
         pol.AllowAnyMethod();
         pol.AllowAnyHeader();
@@ -98,6 +99,7 @@ builder.Services.AddCors(opt =>
 
 builder.Services.AddScoped<UpsertEventsService>();
 builder.Services.AddScoped<EventSyncService>();
+builder.Services.AddScoped<EventTeamsService>();
 builder.Services.AddClients();
 builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
@@ -107,9 +109,10 @@ var app = builder.Build();
 app.UseOutputCache();
 app.UseApiConfiguration();
 
-if (!bool.TryParse(app.Configuration["RUNNING_IN_CONTAINER"], out var inContainer) ||
-    !inContainer)
+// When running in a container, traffic is served over HTTP with an external load balancer handling SSL termination
+if (!bool.TryParse(app.Configuration["RUNNING_IN_CONTAINER"], out var inContainer) || !inContainer)
     app.UseHttpsRedirection();
+
 app.UseCors();
 
 app.UseApiDocumentation();
