@@ -252,10 +252,11 @@ public static class EventsEndpoints
         [FromRoute] int eventTeamId,
         [FromBody] UpdateEventTeamRequest request,
         [FromServices] DataContext dbContext,
+        [FromServices] IServiceProvider serviceProvider,
         ClaimsPrincipal user,
         [FromServices] IAuthorizationService authSvc)
     {
-        var (isValid, validationErrors) = await MiniValidator.TryValidateAsync(request);
+        var (isValid, validationErrors) = await MiniValidator.TryValidateAsync(request, serviceProvider);
         if (!isValid) return TypedResults.ValidationProblem(validationErrors);
         
         var evt = await dbContext.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
@@ -344,7 +345,7 @@ public static class EventsEndpoints
                 .Where(s => s.Id == StatusId).Select(s => s.Id).FirstOrDefault();
             if (string.IsNullOrEmpty(matchingStatus))
             {
-                yield return new ValidationResult($"Unknown status '{StatusId}'.", new[] { nameof(StatusId) });
+                yield return new ValidationResult($"Unknown status '{StatusId}'.", [nameof(StatusId)]);
             }
             else
             {
