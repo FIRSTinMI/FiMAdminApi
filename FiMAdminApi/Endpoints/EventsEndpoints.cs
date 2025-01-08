@@ -256,7 +256,7 @@ public static class EventsEndpoints
         ClaimsPrincipal user,
         [FromServices] IAuthorizationService authSvc)
     {
-        var (isValid, validationErrors) = await MiniValidator.TryValidateAsync(request, serviceProvider);
+        var (isValid, validationErrors) = await MiniValidator.TryValidateAsync(request);
         if (!isValid) return TypedResults.ValidationProblem(validationErrors);
         
         var evt = await dbContext.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
@@ -330,7 +330,7 @@ public static class EventsEndpoints
         public required string Content { get; set; }
     }
     
-    public class UpdateEventTeamRequest : IValidatableObject
+    public class UpdateEventTeamRequest
     {
         [Required]
         [MaxLength(100)]
@@ -338,19 +338,5 @@ public static class EventsEndpoints
         
         [MaxLength(4000)]
         public string? Notes { get; set; }
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            var matchingStatus = validationContext.GetRequiredService<DataContext>().EventTeamStatuses
-                .Where(s => s.Id == StatusId).Select(s => s.Id).FirstOrDefault();
-            if (string.IsNullOrEmpty(matchingStatus))
-            {
-                yield return new ValidationResult($"Unknown status '{StatusId}'.", [nameof(StatusId)]);
-            }
-            else
-            {
-                StatusId = matchingStatus;
-            }
-        }
     }
 }
