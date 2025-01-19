@@ -58,11 +58,18 @@ if (connectionString is null)
     throw new ApplicationException("FiM Connection String is required");
 }
 
+// IMPORTANT!
+// This null name translator should be a singleton, and should *not* be
+// refactored back inside the `AddDbContext`. Having a new one constructed
+// every time confuses EF's ServiceProviderCache, meaning it has to use a new
+// service provider for every request.
+var nullNameTranslator = new NpgsqlNullNameTranslator();
+
 builder.Services.AddDbContext<DataContext>(opt =>
 {
     opt.UseSnakeCaseNamingConvention();
     opt.UseNpgsql(connectionString,
-        o => o.MapEnum<TournamentLevel>("tournament_level", nameTranslator: new NpgsqlNullNameTranslator()));
+        o => o.MapEnum<TournamentLevel>("tournament_level", nameTranslator: nullNameTranslator));
 });
 
 // For most authn/authz we're using tokens directly from Supabase. These tokens get validated by the supabase auth
