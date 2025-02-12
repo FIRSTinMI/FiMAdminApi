@@ -13,11 +13,11 @@ public static class AvTokenEndpoints
 {
     public static WebApplication RegisterAvTokenEndpoints(this WebApplication app, ApiVersionSet vs)
     {
-        var eventsCreateGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/av-token")
+        var routeGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/av-token")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("AV Tokens")
             .AllowAnonymous();
 
-        eventsCreateGroup.MapPost("", CreateAvToken)
+        routeGroup.MapPost("", CreateAvToken)
             .WithSummary("Create Token for AV System")
             .WithDescription(
                 "Will return a token with limited permissions for a specific event, valid until the event's end date");
@@ -39,8 +39,13 @@ public static class AvTokenEndpoints
         var jwtSecret = configuration["Auth:JwtSecret"] ??
                         throw new ApplicationException("Unable to get JWT secret from configuration");
 
-        List<Claim> claims = [new Claim("eventId", evt.Id.ToString()), new Claim("eventKey", evt.Key)];
-        if (evt.Code is not null) claims.Add(new Claim("eventCode", evt.Code));
+        List<Claim> claims = [
+            new("eventId", evt.Id.ToString()),
+            new("eventKey", evt.Key),
+            new("role", "authenticated"),
+        ];
+        if (evt.Code is not null)
+            claims.Add(new Claim("eventCode", evt.Code));
 
         var maxAllowableExpiry = DateTime.UtcNow.AddDays(7);
         
