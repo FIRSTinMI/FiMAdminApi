@@ -81,7 +81,7 @@ public static class ApiStartupExtensions
     }
 }
 
-internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider, IEnumerable<EndpointDataSource> endpoints) : IOpenApiDocumentTransformer
+internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider) : IOpenApiDocumentTransformer
 {
     public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
     {

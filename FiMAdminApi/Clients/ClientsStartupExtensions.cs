@@ -5,11 +5,11 @@ namespace FiMAdminApi.Clients;
 
 public static class ClientsStartupExtensions
 {
-    public static void AddClients(this IServiceCollection services)
+    public static void AddClients(this IServiceCollection services, IHostEnvironment environment)
     {
         services.AddHttpClient(DataSources.FrcEvents.ToString(), client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(10);
+            client.Timeout = TimeSpan.FromSeconds(environment.IsProduction() ? 10 : 30);
         });
         services.AddHttpClient(DataSources.BlueAlliance.ToString());
         services.AddHttpClient(DataSources.FtcEvents.ToString());

@@ -18,11 +18,15 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<ScheduleDeviation> ScheduleDeviations { get; init; }
     public DbSet<TruckRoute> TruckRoutes { get; init; }
     public DbSet<EventTeam> EventTeams { get; init; }
-    public DbSet<EventTeamStatus> EventTeamStatuses { get; set; }
+    public DbSet<EventTeamStatus> EventTeamStatuses { get; init; }
+    public DbSet<Alliance> Alliances { get; init; }
+    public DbSet<Equipment> Equipment { get; init; }
+    public DbSet<EquipmentType> EquipmentTypes { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties(typeof(TournamentLevel)).HaveConversion<TournamentLevel>();
+        configurationBuilder.Properties(typeof(MatchWinner)).HaveConversion<MatchWinner>();
         configurationBuilder.Properties(typeof(Enum)).HaveConversion<string>();
         configurationBuilder.Properties(typeof(IEnumerable<Enum>)).HaveConversion<IEnumerable<string>>();
     }

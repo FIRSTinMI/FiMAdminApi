@@ -10,19 +10,13 @@ using Supabase.Gotrue.Interfaces;
 
 namespace FiMAdminApi;
 
-public class SupabaseJwtHandler : JwtBearerHandler
+public class SupabaseJwtHandler(
+    IGotrueAdminClient<User> adminClient,
+    IOptionsMonitor<JwtBearerOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder)
+    : JwtBearerHandler(options, logger, encoder)
 {
-    private readonly IGotrueAdminClient<User> _adminClient;
-    public SupabaseJwtHandler(IGotrueAdminClient<User> adminClient, IOptionsMonitor<JwtBearerOptions> options, ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock) : base(options, logger, encoder, clock)
-    {
-        _adminClient = adminClient;
-    }
-
-    public SupabaseJwtHandler(IGotrueAdminClient<User> adminClient, IOptionsMonitor<JwtBearerOptions> options, ILoggerFactory logger, UrlEncoder encoder) : base(options, logger, encoder)
-    {
-        _adminClient = adminClient;
-    }
-    
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         // Get the token from the Authorization header
@@ -53,7 +47,7 @@ public class SupabaseJwtHandler : JwtBearerHandler
         User user;
         try
         {
-            user = await _adminClient.GetUser(token) ?? throw new InvalidOperationException("User from Supabase was null");
+            user = await adminClient.GetUser(token) ?? throw new InvalidOperationException("User from Supabase was null");
         }
         catch (Exception ex)
         {

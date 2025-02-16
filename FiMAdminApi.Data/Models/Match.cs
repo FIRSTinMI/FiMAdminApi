@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using FiMAdminApi.Data.Enums;
 
 namespace FiMAdminApi.Data.Models;
@@ -7,17 +8,19 @@ public class Match
     public long Id { get; set; }
     public Guid EventId { get; set; }
     public TournamentLevel TournamentLevel { get; set; }
+    [MaxLength(50)] public string? MatchName { get; set; }
     public int MatchNumber { get; set; }
     public int? PlayNumber { get; set; }
     public int[]? RedAllianceTeams { get; set; }
     public int[]? BlueAllianceTeams { get; set; }
     
     // Used in playoffs
-    public int? RedAllianceId { get; set; }
-    public int? BlueAllianceId { get; set; }
+    public long? RedAllianceId { get; set; }
+    public long? BlueAllianceId { get; set; }
+    public MatchWinner? Winner { get; set; }
     
     // UTC
-    public DateTime ScheduledStartTime { get; set; }
+    public DateTime? ScheduledStartTime { get; set; }
     public DateTime? ActualStartTime { get; set; }
     public DateTime? PostResultTime { get; set; }
 

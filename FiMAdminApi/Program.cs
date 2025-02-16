@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Asp.Versioning;
 using FiMAdminApi;
 using FiMAdminApi.Auth;
@@ -8,11 +9,14 @@ using FiMAdminApi.Endpoints;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Services;
+using Firebase.Database;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.NameTranslation;
+using Supabase;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 builder.Logging.AddConsole(opt =>
@@ -47,10 +51,11 @@ if (key is null || supabaseUrl is null)
 {
     throw new ApplicationException("Supabase service key and URL are required");
 }
-var supabase = new Supabase.Client(supabaseUrl, key);
+
+var supabase = new Supabase.Client(supabaseUrl, key, new SupabaseOptions() {AutoConnectRealtime = false});
 await supabase.InitializeAsync();
-builder.Services.AddScoped(_ => supabase);
-builder.Services.AddScoped(_ => supabase.AdminAuth(key));
+builder.Services.AddSingleton(_ => supabase);
+builder.Services.AddScoped(sp => sp.GetRequiredService<Supabase.Client>().AdminAuth(key));
 
 var connectionString = builder.Configuration.GetConnectionString("fimDbConnection");
 if (connectionString is null)
@@ -69,7 +74,9 @@ builder.Services.AddDbContext<DataContext>(opt =>
 {
     opt.UseSnakeCaseNamingConvention();
     opt.UseNpgsql(connectionString,
-        o => o.MapEnum<TournamentLevel>("tournament_level", nameTranslator: nullNameTranslator));
+        o => o
+            .MapEnum<TournamentLevel>("tournament_level", nameTranslator: nullNameTranslator)
+            .MapEnum<MatchWinner>("match_winner", nameTranslator: nullNameTranslator));
 });
 
 // For most authn/authz we're using tokens directly from Supabase. These tokens get validated by the supabase auth
@@ -107,9 +114,26 @@ builder.Services.AddCors(opt =>
 builder.Services.AddScoped<UpsertEventsService>();
 builder.Services.AddScoped<EventSyncService>();
 builder.Services.AddScoped<EventTeamsService>();
-builder.Services.AddClients();
+builder.Services.AddClients(builder.Environment);
 builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
+
+var accountCred = await GoogleCredential.GetApplicationDefaultAsync();
+var credential = accountCred.CreateScoped(
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/firebase.database");
+
+async Task<string> GetAccessToken()
+{
+    return await (credential as ITokenAccess).GetAccessTokenForRequestAsync();
+}
+
+builder.Services.AddSingleton(_ => new FirebaseClient(builder.Configuration["Firebase:BaseUrl"],
+    new FirebaseOptions
+    {
+        AuthTokenAsyncFactory = GetAccessToken,
+        AsAccessToken = true
+    }));
 
 var app = builder.Build();
 

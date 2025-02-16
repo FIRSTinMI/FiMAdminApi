@@ -5,17 +5,13 @@ using Microsoft.Extensions.Options;
 
 namespace FiMAdminApi.Auth;
 
-public class EventSyncAuthHandler : AuthenticationHandler<EventSyncAuthOptions>
+public class EventSyncAuthHandler(
+    IOptionsMonitor<EventSyncAuthOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder)
+    : AuthenticationHandler<EventSyncAuthOptions>(options, logger, encoder)
 {
     public const string EventSyncAuthScheme = "SyncSecret";
-    
-    public EventSyncAuthHandler(IOptionsMonitor<EventSyncAuthOptions> options, ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock) : base(options, logger, encoder, clock)
-    {
-    }
-
-    public EventSyncAuthHandler(IOptionsMonitor<EventSyncAuthOptions> options, ILoggerFactory logger, UrlEncoder encoder) : base(options, logger, encoder)
-    {
-    }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {

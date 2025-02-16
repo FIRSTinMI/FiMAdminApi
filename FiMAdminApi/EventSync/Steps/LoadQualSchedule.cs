@@ -50,9 +50,10 @@ public class LoadQualSchedule(DataContext dbContext) : EventSyncStep([EventStatu
                 var nextMatch = dbMatches.ElementAtOrDefault(i + 1);
 
                 if (nextMatch is null) continue;
+                if (currentMatch.ScheduledStartTime is null || nextMatch.ScheduledStartTime is null) continue;
 
                 var startDifference = nextMatch.ScheduledStartTime - currentMatch.ScheduledStartTime;
-                if (startDifference.TotalHours > 8)
+                if (startDifference.Value.TotalHours > 8)
                 {
                     dbContext.ScheduleDeviations.Add(new ScheduleDeviation
                     {
@@ -61,7 +62,7 @@ public class LoadQualSchedule(DataContext dbContext) : EventSyncStep([EventStatu
                         AfterMatchId = currentMatch.Id,
                         AssociatedMatchId = null
                     });
-                } else if (startDifference.TotalHours > 0.7)
+                } else if (startDifference.Value.TotalHours > 0.7)
                 {
                     dbContext.ScheduleDeviations.Add(new ScheduleDeviation
                     {

@@ -5,8 +5,11 @@ using System.Text;
 using System.Text.Json;
 using FiMAdminApi.Clients.Exceptions;
 using FiMAdminApi.Clients.Models;
+using FiMAdminApi.Clients.PlayoffTiebreaks;
+using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
 using FiMAdminApi.Extensions;
+using Alliance = FiMAdminApi.Clients.Models.Alliance;
 using Event = FiMAdminApi.Clients.Models.Event;
 
 namespace FiMAdminApi.Clients;
@@ -148,6 +151,175 @@ public class FrcEventsDataClient : RestClient, IDataClient
         }).ToList();
     }
 
+    public async Task<List<Alliance>> GetAlliancesForEvent(Data.Models.Event evt)
+    {
+        var resp = await PerformRequest(
+            BuildGetRequest($"{GetSeason(evt.Season!)}/alliances/{evt.Code}"));
+        resp.EnsureSuccessStatusCode();
+        
+        var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        return json.GetProperty("Alliances").EnumerateArray().Select(a => new Alliance
+        {
+            Name = a.GetProperty("name").GetString() ?? throw new MissingDataException("name"),
+            TeamNumbers = new List<int?> {
+                GetNullableInt(a.GetProperty("captain")),
+                GetNullableInt(a.GetProperty("round1")),
+                GetNullableInt(a.GetProperty("round2")),
+                GetNullableInt(a.GetProperty("round3")),
+                GetNullableInt(a.GetProperty("backup"))
+                // unclear what the "backupReplaced" property does or its type, leaving it out for now
+            }.Where(t => t is not null).Select(t => t!.Value).ToList()
+        }).ToList();
+    }
+
+    public async Task<List<PlayoffMatch>> GetPlayoffResultsForEvent(Data.Models.Event evt)
+    {
+        //var tiebreakResolver = new FrcEvents2025Tiebreak(evt);
+        var eventTz = TimeZoneInfo.FindSystemTimeZoneById(evt.TimeZone);
+        
+        var resultsTask = PerformRequest(
+            BuildGetRequest($"{GetSeason(evt.Season!)}/matches/{evt.Code}", new()
+            {
+                { "tournamentLevel", "Playoff" }
+            }));
+        //{
+        // "Matches" : [ {
+        //   "isReplay" : false,
+        //   "matchVideoLink" : "https://www.youtube.com/watch?v=ehnqux_ddbU",
+        //   "description" : "Match 1 (R1)",
+        //   "matchNumber" : 1,
+        //   "scoreRedFinal" : 101,
+        //   "scoreRedFoul" : 25,
+        //   "scoreRedAuto" : 29,
+        //   "scoreBlueFinal" : 16,
+        //   "scoreBlueFoul" : 2,
+        //   "scoreBlueAuto" : 7,
+        //   "autoStartTime" : "2024-03-09T14:17:45.127",
+        //   "actualStartTime" : "2024-03-09T14:17:45.127",
+        //   "tournamentLevel" : "Playoff",
+        //   "postResultTime" : "2024-03-09T14:22:13.153",
+        //   "teams" : [ {
+        //     "teamNumber" : 2054,
+        //     "station" : "Red1",
+        //     "dq" : false
+        //   }, {
+        //     "teamNumber" : 5610,
+        //     "station" : "Red2",
+        //     "dq" : false
+        //   }, {
+        //     "teamNumber" : 2767,
+        //     "station" : "Red3",
+        //     "dq" : false
+        //   }, {
+        //     "teamNumber" : 9228,
+        //     "station" : "Blue1",
+        //     "dq" : false
+        //   }, {
+        //     "teamNumber" : 4776,
+        //     "station" : "Blue2",
+        //     "dq" : false
+        //   }, {
+        //     "teamNumber" : 4325,
+        //     "station" : "Blue3",
+        //     "dq" : false
+        //   } ]
+        // }
+        
+        var scheduleTask = PerformRequest(
+            BuildGetRequest($"{GetSeason(evt.Season!)}/schedule/{evt.Code}", new()
+            {
+                { "tournamentLevel", "Playoff" }
+            }));
+        
+        // {
+        // "Schedule" : [ {
+        //   "description" : "Match 1 (R1)",
+        //   "startTime" : "2024-03-09T14:00:00",
+        //   "matchNumber" : 1,
+        //   "field" : "Primary",
+        //   "tournamentLevel" : "Playoff",
+        //   "teams" : [ {
+        //     "teamNumber" : 2054,
+        //     "station" : "Red1",
+        //     "surrogate" : false
+        //   }, {
+        //     "teamNumber" : 5610,
+        //     "station" : "Red2",
+        //     "surrogate" : false
+        //   }, {
+        //     "teamNumber" : 2767,
+        //     "station" : "Red3",
+        //     "surrogate" : false
+        //   }, {
+        //     "teamNumber" : 9228,
+        //     "station" : "Blue1",
+        //     "surrogate" : false
+        //   }, {
+        //     "teamNumber" : 4776,
+        //     "station" : "Blue2",
+        //     "surrogate" : false
+        //   }, {
+        //     "teamNumber" : 4325,
+        //     "station" : "Blue3",
+        //     "surrogate" : false
+        //   } ]
+        // } ]
+        // }
+
+        var scheduleResp = await scheduleTask;
+        scheduleResp.EnsureSuccessStatusCode();
+        var scheduleJson = await scheduleResp.Content.ReadFromJsonAsync<JsonElement>();
+        var schedule = scheduleJson.GetProperty("Schedule").EnumerateArray().Select(s => new
+        {
+            MatchNumber = s.GetProperty("matchNumber").GetInt32(),
+            ScheduledStartTime = GetNullableDateTime(s.GetProperty("startTime"))
+        }).ToList();
+
+        var results = await resultsTask;
+        results.EnsureSuccessStatusCode();
+        var resultsJson = await results.Content.ReadFromJsonAsync<JsonElement>();
+        
+        return resultsJson.GetProperty("Matches").EnumerateArray().Select(match =>
+        {
+            var matchNumber = match.GetProperty("matchNumber").GetInt32();
+            var schMatch = schedule.FirstOrDefault(s => s.MatchNumber == matchNumber);
+            var utcScheduledStart = schMatch?.ScheduledStartTime is not null
+                ? TimeZoneInfo.ConvertTimeToUtc(schMatch.ScheduledStartTime.Value, eventTz)
+                : (DateTime?)null;
+            var actualStart = GetNullableDateTime(match.GetProperty("actualStartTime"));
+            var utcActualStart =
+                actualStart is not null ? TimeZoneInfo.ConvertTimeToUtc(actualStart.Value, eventTz) : (DateTime?)null;
+            var postResult = GetNullableDateTime(match.GetProperty("postResultTime"));
+            var utcPostResult =
+                postResult is not null ? TimeZoneInfo.ConvertTimeToUtc(postResult.Value, eventTz) : (DateTime?)null;
+            var (redTeams, blueTeams) = ApiTeamsToFimTeams(match.GetProperty("teams"));
+            var redScore = GetNullableInt(match.GetProperty("scoreRedFinal"));
+            var blueScore = GetNullableInt(match.GetProperty("scoreRedFinal"));
+            var winner = (MatchWinner?)null;
+            if (utcPostResult is not null && redScore is not null && blueScore is not null)
+            {
+                if (redScore > blueScore) winner = MatchWinner.Red;
+                if (blueScore > redScore) winner = MatchWinner.Blue;
+            }
+            return new PlayoffMatch
+            {
+                MatchNumber = matchNumber,
+                MatchName = match.GetProperty("description").GetString(),
+                ScheduledStartTime = utcScheduledStart,
+                ActualStartTime = utcActualStart,
+                PostResultTime = utcPostResult,
+                RedAllianceTeams = redTeams,
+                BlueAllianceTeams = blueTeams,
+                Winner = winner
+            };
+        }).ToList();
+    }
+
+    public IPlayoffTiebreak GetPlayoffTiebreak(Data.Models.Event evt)
+    {
+        return new FrcEvents2025Tiebreak(this, evt);
+    }
+
     public async Task<string?> CheckHealth()
     {
         var resp = await PerformRequest(BuildGetRequest($""));
@@ -155,6 +327,29 @@ public class FrcEventsDataClient : RestClient, IDataClient
         if (resp.IsSuccessStatusCode) return null;
 
         return await resp.Content.ReadAsStringAsync();
+    }
+
+    public async Task<JsonElement> GetPlayoffScoreDetails(Data.Models.Event evt)
+    {
+        var scoreResp = await PerformRequest(
+            BuildGetRequest($"{GetSeason(evt.Season!)}/scores/{evt.Code}/playoff"));
+        scoreResp.EnsureSuccessStatusCode();
+        return await scoreResp.Content.ReadFromJsonAsync<JsonElement>();
+    }
+    
+    public static string GetSeason(Season season)
+    {
+        return season.StartTime.Year.ToString();
+    }
+    
+    private static int? GetNullableInt(JsonElement el)
+    {
+        return el.ValueKind == JsonValueKind.Number ? el.GetInt32() : null;
+    }
+    
+    private static DateTime? GetNullableDateTime(JsonElement el)
+    {
+        return el.ValueKind == JsonValueKind.String ? el.GetDateTime() : null;
     }
 
     private async Task<IEnumerable<Event>> GetAndParseEvents(Season season, string? eventCode = null, string? districtCode = null)
@@ -183,11 +378,6 @@ public class FrcEventsDataClient : RestClient, IDataClient
                 TimeZone = timeZone
             };
         });
-    }
-
-    private static string GetSeason(Season season)
-    {
-        return season.StartTime.Year.ToString();
     }
 
     private static TimeZoneInfo NormalizeTimeZone(string? input)
@@ -223,7 +413,7 @@ public class FrcEventsDataClient : RestClient, IDataClient
     /// <summary>
     /// Creates a request which encodes all user-provided values
     /// </summary>
-    private HttpRequestMessage BuildGetRequest(FormattableString endpoint, Dictionary<string, string>? queryParams = default)
+    private HttpRequestMessage BuildGetRequest(FormattableString endpoint, Dictionary<string, string>? queryParams = null)
     {
         var request = new HttpRequestMessage();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));

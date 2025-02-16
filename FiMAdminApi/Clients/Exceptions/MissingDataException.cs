@@ -6,6 +6,6 @@ public class MissingDataException(string dataPath) : Exception
 
     public override string ToString()
     {
-        return $"Expected data is missing: {dataPath}";
+        return $"Expected data is missing: {DataPath}";
     }
 }

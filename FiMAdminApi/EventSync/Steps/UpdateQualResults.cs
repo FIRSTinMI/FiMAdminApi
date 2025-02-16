@@ -41,7 +41,7 @@ public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStat
                     BlueAllianceTeams = dbMatch.BlueAllianceTeams,
                     RedAllianceId = dbMatch.RedAllianceId,
                     BlueAllianceId = dbMatch.BlueAllianceId,
-                    ScheduledStartTime = dbMatch.ScheduledStartTime,
+                    ScheduledStartTime = null,
                     ActualStartTime = null,
                     PostResultTime = null,
                     IsDiscarded = false
@@ -56,7 +56,7 @@ public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStat
 
         await dbContext.SaveChangesAsync();
 
-        if (await dbContext.Matches.CountAsync(m =>
+        if (evt.Status != EventStatus.AwaitingAlliances && await dbContext.Matches.CountAsync(m =>
                 m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Qualification &&
                 m.IsDiscarded == false && m.ActualStartTime == null) == 0)
         {

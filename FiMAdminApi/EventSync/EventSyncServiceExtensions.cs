@@ -13,9 +13,10 @@ public static class EventSyncServiceExtensions
             typeof(LoadQualSchedule),
             typeof(UpdateQualResults),
             typeof(UpdateQualRankings),
-            typeof(LoadAlliances)
+            typeof(LoadAlliances),
+            typeof(UpdatePlayoffResults)
         };
-
+        
         foreach (var step in steps)
         {
             services.AddScoped(typeof(EventSyncStep), step);

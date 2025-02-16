@@ -3,8 +3,11 @@ using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
 using FiMAdminApi.Clients.Models;
+using FiMAdminApi.Clients.PlayoffTiebreaks;
+using FiMAdminApi.Data.Enums;
 using FiMAdminApi.Data.Models;
 using FiMAdminApi.Extensions;
+using Alliance = FiMAdminApi.Clients.Models.Alliance;
 using Event = FiMAdminApi.Clients.Models.Event;
 
 namespace FiMAdminApi.Clients;
@@ -79,7 +82,22 @@ public class FtcEventsDataClient : RestClient, IDataClient
     {
         throw new NotImplementedException();
     }
-    
+
+    public async Task<List<Alliance>> GetAlliancesForEvent(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<List<PlayoffMatch>> GetPlayoffResultsForEvent(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public IPlayoffTiebreak GetPlayoffTiebreak(Data.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<string?> CheckHealth()
     {
         var resp = await PerformRequest(BuildGetRequest($""));

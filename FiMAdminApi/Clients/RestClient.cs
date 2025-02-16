@@ -11,8 +11,8 @@ public abstract class RestClient(ILogger<RestClient> logger, HttpClient httpClie
     {
         return PerformRequest(request, CancellationToken.None);
     }
-    
-    protected async Task<HttpResponseMessage> PerformRequest(HttpRequestMessage request, CancellationToken ct)
+
+    private async Task<HttpResponseMessage> PerformRequest(HttpRequestMessage request, CancellationToken ct)
     {
         var timer = new Stopwatch();
         timer.Start();
@@ -22,10 +22,10 @@ public abstract class RestClient(ILogger<RestClient> logger, HttpClient httpClie
         Logger.LogInformation("Request: url({url}) elapsed({ms}ms) status({status})", request.RequestUri,
             timer.ElapsedMilliseconds, (int)response.StatusCode);
 
-        if (TrackLastModified && response.Headers.TryGetValues("Last-Modified", out var modifiedValues))
-        {
-            // todo
-        }
+        // if (TrackLastModified && response.Headers.TryGetValues("Last-Modified", out var modifiedValues))
+        // {
+        //     // todo
+        // }
 
         return response;
     }
