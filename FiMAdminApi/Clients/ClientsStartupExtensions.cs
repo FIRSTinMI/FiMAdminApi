@@ -9,7 +9,8 @@ public static class ClientsStartupExtensions
     {
         services.AddHttpClient(DataSources.FrcEvents.ToString(), client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(environment.IsProduction() ? 10 : 30);
+            // This timeout is absurdly long, but sometimes the FRC API is just. that. slow. (mostly on inactive events)
+            client.Timeout = TimeSpan.FromSeconds(environment.IsProduction() ? 30 : 60);
         });
         services.AddHttpClient(DataSources.BlueAlliance.ToString());
         services.AddHttpClient(DataSources.FtcEvents.ToString());
