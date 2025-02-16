@@ -1,8 +1,9 @@
 using System.ComponentModel;
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
-using FiMAdminApi.Data.Enums;
-using FiMAdminApi.Data.Models;
+using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Models.Enums;
+using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.Services;

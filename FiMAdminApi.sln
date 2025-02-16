@@ -2,7 +2,11 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi", "FiMAdminApi\FiMAdminApi.csproj", "{DA4DB564-68AF-4B2C-B37F-469C44DEDFBD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi.Data", "FiMAdminApi.Data\FiMAdminApi.Data.csproj", "{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi.Models", "FiMAdminApi.Models\FiMAdminApi.Models.csproj", "{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi.Clients", "FiMAdminApi.Clients\FiMAdminApi.Clients.csproj", "{F2292A43-CF95-4E6F-AD3F-17260D0B3434}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiMAdminApi.Data.EfPgsql", "FiMAdminApi.Data.EfPgsql\FiMAdminApi.Data.EfPgsql.csproj", "{F8DC153C-70E7-404F-86A8-64FD5DB0A84C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +22,13 @@ Global
 		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6A85222A-42ED-46DA-93F8-EEEFA72C7A8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2292A43-CF95-4E6F-AD3F-17260D0B3434}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2292A43-CF95-4E6F-AD3F-17260D0B3434}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2292A43-CF95-4E6F-AD3F-17260D0B3434}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2292A43-CF95-4E6F-AD3F-17260D0B3434}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8DC153C-70E7-404F-86A8-64FD5DB0A84C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8DC153C-70E7-404F-86A8-64FD5DB0A84C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8DC153C-70E7-404F-86A8-64FD5DB0A84C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8DC153C-70E7-404F-86A8-64FD5DB0A84C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -1,7 +1,5 @@
 using Asp.Versioning.Builder;
-using FiMAdminApi.Clients;
-using FiMAdminApi.Data.Enums;
-using FiMAdminApi.Data.Models;
+using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

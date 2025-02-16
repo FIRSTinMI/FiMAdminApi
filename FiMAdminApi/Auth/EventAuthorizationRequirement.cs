@@ -1,4 +1,4 @@
-using FiMAdminApi.Data.Enums;
+using FiMAdminApi.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 
 namespace FiMAdminApi.Auth;

@@ -1,5 +1,6 @@
 using FiMAdminApi.Data;
-using FiMAdminApi.Data.Enums;
+using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
