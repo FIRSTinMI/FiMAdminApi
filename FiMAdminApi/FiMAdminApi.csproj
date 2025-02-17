@@ -5,7 +5,8 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-<!--        <PublishAot>true</PublishAot>-->
+        <!-- Unable to publish AOT until EF has better support for it -->
+        <!-- <PublishAot>true</PublishAot> -->
         <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
         <UserSecretsId>b6263931-3814-4b25-b0c5-089ac32ee89a</UserSecretsId>
   </PropertyGroup>
@@ -19,7 +20,7 @@
         <PackageReference Include="MiniValidation" Version="0.9.1" />
         <PackageReference Include="Supabase" Version="1.1.1" />
         <PackageReference Include="System.Collections" Version="4.3.0" />
-        <PackageReference Include="System.Text.Json" Version="9.0.0-rc.2.24473.5" />
+
     </ItemGroup>
 
     <ItemGroup>
@@ -29,7 +30,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\FiMAdminApi.Data\FiMAdminApi.Data.csproj" />
+      <ProjectReference Include="..\FiMAdminApi.Clients\FiMAdminApi.Clients.csproj" />
+      <ProjectReference Include="..\FiMAdminApi.Data.EfPgsql\FiMAdminApi.Data.EfPgsql.csproj" />
+      <ProjectReference Include="..\FiMAdminApi.Models\FiMAdminApi.Models.csproj" />
     </ItemGroup>
 
 </Project>

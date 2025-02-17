@@ -2,8 +2,9 @@ using System.ComponentModel;
 using System.Text.Json.Serialization;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Data;
-using FiMAdminApi.Data.Enums;
-using FiMAdminApi.Data.Models;
+using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Models.Enums;
+using FiMAdminApi.Models.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,14 +32,14 @@ public static class UsersEndpoints
         return app;
     }
 
-    private static async Task<Ok<Data.Models.User[]>> SearchUsers(
+    private static async Task<Ok<Models.Models.User[]>> SearchUsers(
         [FromQuery] [Description("A free-text search to filter the returned users")]
         string? searchTerm,
         [FromServices] IGotrueAdminClient<User> adminClient,
         [FromServices] DataContext dbContext)
     {
         var users = await adminClient.ListUsers(searchTerm, perPage: 20);
-        if (users is null) return TypedResults.Ok(Array.Empty<Data.Models.User>());
+        if (users is null) return TypedResults.Ok(Array.Empty<Models.Models.User>());
 
         var selectedUsers = users.Users.Select(u =>
         {
@@ -53,7 +54,7 @@ public static class UsersEndpoints
                 }).Where(r => r is not null).Select(r => r!.Value);
             }
 
-            return new Data.Models.User
+            return new Models.Models.User
             {
                 Id = Guid.Parse(u.Id!),
                 Email = u.Email,
@@ -81,7 +82,7 @@ public static class UsersEndpoints
         }).ToArray());
     }
 
-    private static async Task<Results<Ok<Data.Models.User>, NotFound>> GetUser(
+    private static async Task<Results<Ok<Models.Models.User>, NotFound>> GetUser(
         [FromRoute] [Description("The user's ID")]
         Guid id,
         [FromServices] IGotrueAdminClient<User> adminClient,
@@ -113,7 +114,7 @@ public static class UsersEndpoints
             }).Where(r => r is not null).Select(r => r!.Value);
         }
 
-        var userModel = new Data.Models.User
+        var userModel = new Models.Models.User
         {
             Id = Guid.Parse(user.Id!),
             Email = user.Email,

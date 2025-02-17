@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FiMAdminApi.Data.Models;
 using FiMAdminApi.Endpoints;
 using FiMAdminApi.EventSync;
+using FiMAdminApi.Models.Models;
 using FiMAdminApi.Services;
 
 namespace FiMAdminApi.Infrastructure;

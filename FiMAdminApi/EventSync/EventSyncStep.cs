@@ -1,5 +1,5 @@
 using FiMAdminApi.Clients;
-using FiMAdminApi.Data.Models;
+using FiMAdminApi.Models.Models;
 
 namespace FiMAdminApi.EventSync;
 
