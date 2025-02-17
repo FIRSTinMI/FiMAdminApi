@@ -61,7 +61,7 @@ public static class EventSyncEndpoints
         return TypedResults.Ok(await service.ForceEventSyncStep(evt, syncStepName));
     }
 
-    private static async Task<Ok<EventSyncResult>> SyncCurrentEvents(
+    private static async Task<Results<Ok<EventSyncResult>, BadRequest<EventSyncResult>>> SyncCurrentEvents(
         [FromServices] DataContext context,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IServiceProvider serviceProvider)
@@ -98,7 +98,13 @@ public static class EventSyncEndpoints
         var combinedSyncMessages = syncMessages.Any()
                 ? string.Join(Environment.NewLine, syncMessages.Select(kvp => $"{kvp.Key} - {kvp.Value}"))
                 : null;
-        return TypedResults.Ok(new EventSyncResult(isSuccess, combinedSyncMessages));
+        
+        var eventSyncResult = new EventSyncResult(isSuccess, combinedSyncMessages);
+
+        if (!isSuccess)
+            return TypedResults.BadRequest(eventSyncResult);
+                
+        return TypedResults.Ok(eventSyncResult);
     }
 
     private static async Task<Ok> SyncEventsToFirebase([FromServices] DataContext context, [FromServices] FirebaseClient firebase)
