@@ -147,6 +147,8 @@ if (!bool.TryParse(app.Configuration["RUNNING_IN_CONTAINER"], out var inContaine
 
 app.UseCors();
 
+app.UseExceptionHandler();
+
 app.UseApiDocumentation();
 
 app.UseAuthentication();

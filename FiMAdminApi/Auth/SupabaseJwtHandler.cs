@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 using Supabase.Gotrue;
 using Supabase.Gotrue.Interfaces;
 
-namespace FiMAdminApi;
+namespace FiMAdminApi.Auth;
 
 public class SupabaseJwtHandler(
     IGotrueAdminClient<User> adminClient,
@@ -51,7 +51,7 @@ public class SupabaseJwtHandler(
         }
         catch (Exception ex)
         {
-            Logger.LogInformation(ex, "Exception thrown while validating token");
+            Logger.LogInformation("Exception thrown while validating token: {exception}", ex.ToString());
             return AuthenticateResult.Fail("Token validation failed.");
         }
         
