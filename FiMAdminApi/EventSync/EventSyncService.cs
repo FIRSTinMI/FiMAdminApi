@@ -45,7 +45,7 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
                 }
                 catch (Exception ex)
                 {
-                    return new EventSyncResult(false, ex.Message);
+                    return new EventSyncResult(false, ex.ToString());
                 }
             }
         } while (runAgain);

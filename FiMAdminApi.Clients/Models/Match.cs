@@ -16,8 +16,8 @@ public class ScheduledMatch : BaseMatch
 
 public class MatchResult : BaseMatch
 {
-    public DateTime ActualStartTime { get; set; }
-    public DateTime PostResultTime { get; set; }
+    public DateTime? ActualStartTime { get; set; }
+    public DateTime? PostResultTime { get; set; }
 }
 
 public class PlayoffMatch : BaseMatch

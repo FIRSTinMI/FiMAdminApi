@@ -65,9 +65,11 @@ public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStat
         }
     }
 
-    private static bool AreDatesWithinTolerance(DateTime date1, DateTime date2, TimeSpan tolerance)
+    private static bool AreDatesWithinTolerance(DateTime? date1, DateTime? date2, TimeSpan tolerance)
     {
-        var diff = (date1 - date2).Duration();
+        if (date1 is null || date2 is null) return true;
+        
+        var diff = (date1.Value - date2.Value).Duration();
 
         return diff < tolerance;
     }

@@ -121,11 +121,9 @@ public class FrcEventsDataClient : RestClient, IDataClient
         return json.Matches.Select(match =>
         {
             var utcActualStart = match.ActualStartTime is not null
-                ? TimeZoneInfo.ConvertTimeToUtc(match.ActualStartTime.Value, eventTz)
-                : throw new MissingDataException("Expected all completed qual matches to have a start time but didn't");
+                ? TimeZoneInfo.ConvertTimeToUtc(match.ActualStartTime.Value, eventTz) : (DateTime?)null;
             var utcPostResult = match.PostResultTime is not null
-                ? TimeZoneInfo.ConvertTimeToUtc(match.PostResultTime.Value, eventTz)
-                : throw new MissingDataException("Expected all completed qual matches to have a post time but didn't");
+                ? TimeZoneInfo.ConvertTimeToUtc(match.PostResultTime.Value, eventTz) : (DateTime?)null;
             return new MatchResult
             {
                 MatchNumber = match.MatchNumber,
