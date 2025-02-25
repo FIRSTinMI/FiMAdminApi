@@ -333,10 +333,15 @@ public class FrcEventsDataClient : RestClient, IDataClient
     private static (int[] redAllianceTeams, int[] blueAllianceTeams) ApiTeamsToFimTeams(MatchTeam[] apiTeams)
     {
         var apiDict = apiTeams.ToDictionary(t => t.Station, t => t.TeamNumber);
-        var red = RedTeamStations.Select(s => apiDict.GetValueOrDefault(s)).Where(t => t is not null).Select(t => t!.Value).ToArray();
-        var blue = BlueTeamStations.Select(s => apiDict.GetValueOrDefault(s)).Where(t => t is not null).Select(t => t!.Value).ToArray();
+        var red = RedTeamStations.Select(s => apiDict.GetValueOrDefault(s)).Where(IsRealTeamNumber).Select(t => t!.Value).ToArray();
+        var blue = BlueTeamStations.Select(s => apiDict.GetValueOrDefault(s)).Where(IsRealTeamNumber).Select(t => t!.Value).ToArray();
 
         return (red, blue);
+
+        bool IsRealTeamNumber(int? teamNumber)
+        {
+            return teamNumber is not null && teamNumber != 0;
+        }
     }
 
     /// <summary>
