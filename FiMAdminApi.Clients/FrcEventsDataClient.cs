@@ -243,8 +243,8 @@ public class FrcEventsDataClient : RestClient, IDataClient
                 ScheduledStartTime = utcScheduledStart,
                 ActualStartTime = utcActualStart,
                 PostResultTime = utcPostResult,
-                RedAllianceTeams = redTeams,
-                BlueAllianceTeams = blueTeams,
+                RedAllianceTeams = redTeams.Length > 0 ? redTeams : null,
+                BlueAllianceTeams = blueTeams.Length > 0 ? blueTeams : null,
                 Winner = winner
             };
         }).ToList();
@@ -333,8 +333,8 @@ public class FrcEventsDataClient : RestClient, IDataClient
     private static (int[] redAllianceTeams, int[] blueAllianceTeams) ApiTeamsToFimTeams(MatchTeam[] apiTeams)
     {
         var apiDict = apiTeams.ToDictionary(t => t.Station, t => t.TeamNumber);
-        var red = RedTeamStations.Select(s => apiDict[s]).ToArray();
-        var blue = BlueTeamStations.Select(s => apiDict[s]).ToArray();
+        var red = RedTeamStations.Select(s => apiDict.GetValueOrDefault(s)).Where(t => t is not null).Select(t => t!.Value).ToArray();
+        var blue = BlueTeamStations.Select(s => apiDict.GetValueOrDefault(s)).Where(t => t is not null).Select(t => t!.Value).ToArray();
 
         return (red, blue);
     }
