@@ -42,6 +42,8 @@ internal class FrcEvents2025Tiebreak : IPlayoffTiebreak
     {
         public required int MatchNumber { get; set; }
         public required AllianceType WinningAlliance { get; set; }
-        public required (PlayoffTiebreakType tiebreakType, string tiebreakReason) Tiebreaker { get; set; }
+        public required (
+            PlayoffTiebreakType tiebreakType /* called item1 in api */,
+            string tiebreakReason /* called item2 in api */) Tiebreaker { get; set; }
     }
 }

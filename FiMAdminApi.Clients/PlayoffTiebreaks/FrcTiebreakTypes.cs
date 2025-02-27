@@ -6,9 +6,9 @@ namespace FiMAdminApi.Clients.PlayoffTiebreaks;
 
 internal enum AllianceType
 {
-    None,
-    Red,
-    Blue,
+    None = 0,
+    Red = 1,
+    Blue = 2,
 }
 
 internal enum PlayoffTiebreakType

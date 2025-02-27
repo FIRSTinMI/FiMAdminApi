@@ -2,10 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Auth;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
+using FiMAdminApi.Repositories;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -47,6 +47,7 @@ public static class EventsEndpoints
         [FromRoute] Guid id,
         [FromBody] UpdateBasicInfoRequest request,
         [FromServices] IAuthorizationService authSvc,
+        [FromServices] EventRepository repo,
         ClaimsPrincipal user,
         [FromServices] DataContext dbContext)
     {
@@ -59,8 +60,10 @@ public static class EventsEndpoints
             NeededEventPermission = EventPermission.Event_ManageInfo
         });
         if (!authResult.Succeeded) return TypedResults.Forbid();
-        
-        var evt = await dbContext.Events.FirstOrDefaultAsync(e => e.Id == id);
+
+        var evt = await dbContext.Events
+            .Include(e => e.Season).ThenInclude(s => s!.Level)
+            .FirstOrDefaultAsync(e => e.Id == id);
         if (evt is null) return TypedResults.NotFound();
 
         evt.Name = request.Name;
@@ -70,7 +73,7 @@ public static class EventsEndpoints
         evt.TimeZone = request.Timezone;
         evt.Status = request.Status;
 
-        await dbContext.SaveChangesAsync();
+        await repo.UpdateEvent(evt);
 
         return TypedResults.Ok(evt);
     }

@@ -9,6 +9,7 @@ using FiMAdminApi.Endpoints;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Models.Enums;
+using FiMAdminApi.Repositories;
 using FiMAdminApi.Services;
 using Firebase.Database;
 using Google.Apis.Auth.OAuth2;
@@ -115,6 +116,7 @@ builder.Services.AddCors(opt =>
 builder.Services.AddScoped<UpsertEventsService>();
 builder.Services.AddScoped<EventSyncService>();
 builder.Services.AddScoped<EventTeamsService>();
+builder.Services.AddScoped<EventRepository>();
 builder.Services.AddClients(builder.Environment.IsProduction());
 builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
