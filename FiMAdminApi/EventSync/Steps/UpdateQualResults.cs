@@ -53,6 +53,7 @@ public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStat
 
             dbMatch.ActualStartTime = apiMatch.ActualStartTime;
             dbMatch.PostResultTime = apiMatch.PostResultTime;
+            dbMatch.MatchVideoLink = apiMatch.MatchVideoLink;
         }
 
         await dbContext.SaveChangesAsync();

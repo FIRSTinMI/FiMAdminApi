@@ -76,6 +76,7 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
             dbMatch.PostResultTime = apiMatch.PostResultTime;
             dbMatch.RedAllianceTeams = apiMatch.RedAllianceTeams;
             dbMatch.BlueAllianceTeams = apiMatch.BlueAllianceTeams;
+            dbMatch.MatchVideoLink = apiMatch.MatchVideoLink;
 
             // Figure out which alliance played based on which team numbers overlap
             if (dbMatch.RedAllianceId is null && apiMatch.RedAllianceTeams is not null && apiMatch.RedAllianceTeams.Length > 0)

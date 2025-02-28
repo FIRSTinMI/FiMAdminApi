@@ -18,6 +18,7 @@ public class MatchResult : BaseMatch
 {
     public DateTime? ActualStartTime { get; set; }
     public DateTime? PostResultTime { get; set; }
+    public string? MatchVideoLink { get; set; }
 }
 
 public class PlayoffMatch : BaseMatch
@@ -29,4 +30,5 @@ public class PlayoffMatch : BaseMatch
     public DateTime? ActualStartTime { get; set; }
     public DateTime? PostResultTime { get; set; }
     public MatchWinner? Winner { get; set; }
+    public string? MatchVideoLink { get; set; }
 }

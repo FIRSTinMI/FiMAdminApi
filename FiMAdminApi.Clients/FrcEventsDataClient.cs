@@ -129,6 +129,7 @@ public class FrcEventsDataClient : RestClient, IDataClient
                 MatchNumber = match.MatchNumber,
                 ActualStartTime = utcActualStart,
                 PostResultTime = utcPostResult,
+                MatchVideoLink = match.MatchVideoLink
             };
         }).ToList();
     }
@@ -245,7 +246,8 @@ public class FrcEventsDataClient : RestClient, IDataClient
                 PostResultTime = utcPostResult,
                 RedAllianceTeams = redTeams.Length > 0 ? redTeams : null,
                 BlueAllianceTeams = blueTeams.Length > 0 ? blueTeams : null,
-                Winner = winner
+                Winner = winner,
+                MatchVideoLink = match.MatchVideoLink
             };
         }).ToList();
     }

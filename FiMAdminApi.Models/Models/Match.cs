@@ -13,6 +13,7 @@ public class Match
     public int? PlayNumber { get; set; }
     public int[]? RedAllianceTeams { get; set; }
     public int[]? BlueAllianceTeams { get; set; }
+    [StringLength(100)] public string? MatchVideoLink { get; set; }
     
     // Used in playoffs
     public long? RedAllianceId { get; set; }
