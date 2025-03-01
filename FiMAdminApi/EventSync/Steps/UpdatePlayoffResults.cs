@@ -92,7 +92,7 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
                     ?.Id;
             }
 
-            if (dbMatch.Winner is null && apiMatch.PostResultTime is not null)
+            if (dbMatch.Winner is null && apiMatch.ActualStartTime is not null)
             {
                 if (apiMatch.Winner is not null)
                 {

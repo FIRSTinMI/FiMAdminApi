@@ -18,13 +18,12 @@ internal class FrcEvents2025Tiebreak : IPlayoffTiebreak
     
     private Lazy<Task<ScoreDetailResponse?>> _scoreDetails;
     
-    public async Task<MatchWinner> DetermineMatchWinner(PlayoffMatch match)
+    public async Task<MatchWinner?> DetermineMatchWinner(PlayoffMatch match)
     {
         var details = await _scoreDetails.Value;
         var matchDetails = details?.MatchScores.FirstOrDefault(m => m.MatchNumber == match.MatchNumber);
         if (matchDetails is null)
-            throw new ApplicationException(
-                $"Unable to get score details for match {match.MatchName ?? match.MatchNumber.ToString()}");
+            return null;
         if (matchDetails.WinningAlliance == AllianceType.Blue) return MatchWinner.Blue;
         if (matchDetails.WinningAlliance == AllianceType.Red) return MatchWinner.Red;
         if (matchDetails.Tiebreaker.tiebreakType == PlayoffTiebreakType.TrueTie) return MatchWinner.TrueTie;

@@ -5,5 +5,5 @@ namespace FiMAdminApi.Clients.PlayoffTiebreaks;
 
 public interface IPlayoffTiebreak
 {
-    public Task<MatchWinner> DetermineMatchWinner(PlayoffMatch match);
+    public Task<MatchWinner?> DetermineMatchWinner(PlayoffMatch match);
 }
