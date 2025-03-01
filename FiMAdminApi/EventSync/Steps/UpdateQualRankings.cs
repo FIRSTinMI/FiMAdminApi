@@ -15,21 +15,43 @@ public class UpdateQualRankings(DataContext dbContext)
 
         if (rankings.Count == 0) return;
 
-        await dbContext.EventRankings.Where(r => r.EventId == evt.Id).ExecuteDeleteAsync();
-        
-        dbContext.EventRankings.AddRange(rankings.Select(r => new EventRanking
+        var dbRankings = await dbContext.EventRankings.Where(r => r.EventId == evt.Id).ToDictionaryAsync(r => r.TeamNumber);
+
+        // This should never happen, but just in case
+        var removedRankings = dbRankings.ExceptBy(rankings.Select(r => r.TeamNumber), r => r.Key);
+        foreach (var (_, removedRanking) in removedRankings)
         {
-            EventId = evt.Id,
-            Rank = r.Rank,
-            TeamNumber = r.TeamNumber,
-            SortOrders = [r.SortOrder1, r.SortOrder2, r.SortOrder3, r.SortOrder4, r.SortOrder5, r.SortOrder6],
-            Wins = r.Wins,
-            Ties = r.Ties,
-            Losses = r.Losses,
-            QualAverage = r.QualAverage,
-            Disqualifications = r.Disqualifications,
-            MatchesPlayed = r.MatchesPlayed
-        }));
+            dbContext.EventRankings.Remove(removedRanking);
+        }
+
+        foreach (var ranking in rankings)
+        {
+            // If there's already a ranking in the DB for the team, reuse it. Otherwise create a new one
+            var dbRanking = dbRankings.GetValueOrDefault(ranking.TeamNumber, new EventRanking
+            {
+                EventId = evt.Id,
+                TeamNumber = ranking.TeamNumber,
+                Rank = ranking.Rank
+            });
+
+            dbRanking.Rank = ranking.Rank;
+            dbRanking.SortOrders =
+            [
+                ranking.SortOrder1, ranking.SortOrder2, ranking.SortOrder3, ranking.SortOrder4, ranking.SortOrder5,
+                ranking.SortOrder6
+            ];
+            dbRanking.Wins = ranking.Wins;
+            dbRanking.Ties = ranking.Ties;
+            dbRanking.Losses = ranking.Losses;
+            dbRanking.QualAverage = ranking.QualAverage;
+            dbRanking.Disqualifications = ranking.Disqualifications;
+            dbRanking.MatchesPlayed = ranking.MatchesPlayed;
+
+            if (dbRanking.Id == 0)
+            {
+                dbContext.EventRankings.Add(dbRanking);
+            }
+        }
 
         await dbContext.SaveChangesAsync();
     }
