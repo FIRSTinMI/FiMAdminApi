@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Auth;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.EventSync;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using FiMAdminApi.Repositories;
@@ -37,6 +38,8 @@ public static class EventsEndpoints
             .WithDescription("Create an event note");
         eventsGroup.MapPut("{eventId:guid}/teams", RefreshEventTeams)
             .WithDescription("Refresh event teams");
+        eventsGroup.MapPut("{eventId:guid}/match-results", RefreshEventMatchResults)
+            .WithDescription("Force refresh event match results and rankings");
         eventsGroup.MapPut("{eventId:guid}/teams/{eventTeamId:int}", UpdateEventTeam)
             .WithDescription("Update event team");
         
@@ -247,6 +250,31 @@ public static class EventsEndpoints
         if (!isAuthorized.Succeeded) return TypedResults.Forbid();
 
         await teamsService.UpsertEventTeams(evt);
+
+        return TypedResults.Ok();
+    }
+    
+    private static async Task<Results<Ok, NotFound, ForbidHttpResult>> RefreshEventMatchResults(
+        [FromRoute] Guid eventId,
+        [FromServices] DataContext dbContext,
+        [FromServices] EventSyncService syncService,
+        ClaimsPrincipal user,
+        [FromServices] IAuthorizationService authSvc)
+    {
+        var evt = await dbContext.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        if (evt is null)
+            return TypedResults.NotFound();
+        
+        var isAuthorized = await authSvc.AuthorizeAsync(user, eventId, new EventAuthorizationRequirement
+        {
+            NeededEventPermission = EventPermission.Event_ManageInfo,
+            NeededGlobalPermission = GlobalPermission.Events_Manage
+        });
+        if (!isAuthorized.Succeeded) return TypedResults.Forbid();
+
+        await syncService.ForceEventSyncStep(evt, "UpdateQualResults");
+        await syncService.ForceEventSyncStep(evt, "UpdateQualRankings");
+        await syncService.ForceEventSyncStep(evt, "UpdatePlayoffResults");
 
         return TypedResults.Ok();
     }

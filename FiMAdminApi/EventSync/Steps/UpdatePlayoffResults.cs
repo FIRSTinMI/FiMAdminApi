@@ -23,7 +23,9 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
 
         var apiMatches = await apiMatchesTask;
 
-        if (evt.Status != EventStatus.PlayoffsInProgress && apiMatches.Count > 0)
+        if (apiMatches.Count == 0) return;
+
+        if (evt.Status == EventStatus.AwaitingPlayoffs)
         {
             evt.Status = EventStatus.PlayoffsInProgress;
         }

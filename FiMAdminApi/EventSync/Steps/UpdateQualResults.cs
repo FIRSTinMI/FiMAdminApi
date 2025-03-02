@@ -58,7 +58,7 @@ public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStat
 
         await dbContext.SaveChangesAsync();
 
-        if (evt.Status != EventStatus.AwaitingAlliances && await dbContext.Matches.CountAsync(m =>
+        if (evt.Status == EventStatus.QualsInProgress && await dbContext.Matches.CountAsync(m =>
                 m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Qualification &&
                 m.IsDiscarded == false && m.ActualStartTime == null) == 0)
         {
