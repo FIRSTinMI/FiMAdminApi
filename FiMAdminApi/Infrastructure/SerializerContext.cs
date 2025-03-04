@@ -29,6 +29,7 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(TruckRoutesEndpoints.EditTruckRoute))]
 [JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenRequest))]
 [JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenResponse))]
+[JsonSerializable(typeof(AvCartsEndpoints.StreamInfo[]))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }

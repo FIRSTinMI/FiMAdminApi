@@ -165,6 +165,7 @@ app
     .RegisterTruckRoutesEndpoints(globalVs)
     .RegisterEventSyncEndpoints(globalVs)
     .RegisterMatchesEndpoints(globalVs)
-    .RegisterAvTokenEndpoints(globalVs);
+    .RegisterAvTokenEndpoints(globalVs)
+    .RegisterAvCartsEndpoints(globalVs);
 
 app.Run();

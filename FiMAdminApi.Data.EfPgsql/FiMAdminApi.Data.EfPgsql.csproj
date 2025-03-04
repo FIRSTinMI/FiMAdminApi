@@ -13,14 +13,14 @@
     <ItemGroup>
       <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
       <PackageReference Include="FirebaseDatabase.net" Version="4.2.0" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
       <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.2" />
-      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" />
-      <PackageReference Include="Supabase.Postgrest" Version="4.0.3" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.2" />
+      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+      <PackageReference Include="Supabase.Postgrest" Version="4.1.0" />
     </ItemGroup>
 
 </Project>

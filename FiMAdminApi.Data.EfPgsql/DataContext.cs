@@ -21,6 +21,7 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<EventTeamStatus> EventTeamStatuses { get; init; }
     public DbSet<Alliance> Alliances { get; init; }
     public DbSet<Equipment> Equipment { get; init; }
+    public DbSet<AvCartEquipment> AvCarts { get; set; }
     public DbSet<EquipmentType> EquipmentTypes { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -41,5 +42,22 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
                 new ValueComparer<ICollection<EventPermission>>((c1, c2) => c2 != null && c1 != null && c1.SequenceEqual(c2),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
+
+        modelBuilder.Entity<Equipment>(entity =>
+        {
+            entity.HasDiscriminator(e => e.EquipmentTypeId)
+                // EF should be smart enough skip the discriminator on the base type, returning all results 
+                .HasValue<Equipment>(0)
+                .HasValue<AvCartEquipment>(1);
+        });
+        
+        modelBuilder.Entity<AvCartEquipment>(entity =>
+        {
+            entity.OwnsOne(e => e.Configuration, builder =>
+            {
+                builder.ToJson();
+                builder.OwnsMany(c => c.StreamInfo);
+            });
+        });
     }
 }
