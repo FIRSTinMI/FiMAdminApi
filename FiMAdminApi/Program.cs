@@ -118,6 +118,7 @@ builder.Services.AddScoped<EventSyncService>();
 builder.Services.AddScoped<EventTeamsService>();
 builder.Services.AddScoped<EventRepository>();
 builder.Services.AddClients(builder.Environment.IsProduction());
+builder.Services.AddAvCartService();
 builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
 

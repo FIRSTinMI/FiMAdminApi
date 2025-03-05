@@ -4,6 +4,7 @@ using Asp.Versioning.Builder;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
+using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +18,11 @@ public static class AvCartsEndpoints
     {
         var matchesGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/av-carts")
             .WithTags("AV Carts").WithApiVersionSet(vs).HasApiVersion(1)
-            .RequireAuthorization(nameof(GlobalPermission.Equipment_Manage));
+            .RequireAuthorization(nameof(GlobalPermission.Equipment_Av_ManageStream));
 
         matchesGroup.MapPut("/{cartId:guid:required}/stream-info", UpdateStreamInfo);
+        matchesGroup.MapPut("/{cartId:guid:required}/stream/start", StartStream);
+        matchesGroup.MapPut("/{cartId:guid:required}/stream/stop", StopStream);
 
         return app;
     }
@@ -44,6 +47,26 @@ public static class AvCartsEndpoints
         }).ToList();
         
         await dataContext.SaveChangesAsync();
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Ok> StartStream(
+        [FromRoute] Guid cartId,
+        [FromQuery] int? streamNum,
+        [FromServices] AvCartService service)
+    {
+        await service.StartStream(cartId, streamNum);
+
+        return TypedResults.Ok();
+    }
+    
+    private static async Task<Ok> StopStream(
+        [FromRoute] Guid cartId,
+        [FromQuery] int? streamNum,
+        [FromServices] AvCartService service)
+    {
+        await service.StopStream(cartId, streamNum);
 
         return TypedResults.Ok();
     }
