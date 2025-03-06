@@ -23,6 +23,7 @@ public static class AvCartsEndpoints
         matchesGroup.MapPut("/{cartId:guid:required}/stream-info", UpdateStreamInfo);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/start", StartStream);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/stop", StopStream);
+        matchesGroup.MapPut("/{cartId:guid:required}/stream/push-keys", PushStreamKeys);
 
         return app;
     }
@@ -67,6 +68,15 @@ public static class AvCartsEndpoints
         [FromServices] AvCartService service)
     {
         await service.StopStream(cartId, streamNum);
+
+        return TypedResults.Ok();
+    }
+    
+    private static async Task<Ok> PushStreamKeys(
+        [FromRoute] Guid cartId,
+        [FromServices] AvCartService service)
+    {
+        await service.PushStreamKeys(cartId);
 
         return TypedResults.Ok();
     }

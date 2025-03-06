@@ -28,6 +28,17 @@ public class AvCartService(IHttpClientFactory httpClientFactory, ILogger<AvCartS
 
         resp.EnsureSuccessStatusCode();
     }
+    
+    public async Task PushStreamKeys(Guid equipmentId)
+    {
+        logger.LogInformation("Pushing stream keys to cart {equipmentId}", equipmentId);
+        
+        var httpClient = httpClientFactory.CreateClient("AvCartHttpClient");
+
+        var resp = await httpClient.PutAsync($"Assistant/PushStreamKeys/{equipmentId.ToString()}", null);
+
+        resp.EnsureSuccessStatusCode();
+    }
 }
 
 public static class AvCartServiceExtensions
