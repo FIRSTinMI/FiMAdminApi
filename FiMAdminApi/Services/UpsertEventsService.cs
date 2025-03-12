@@ -77,6 +77,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
                 dbEvent.StartTime = apiEvent.StartTime.UtcDateTime.AddDays(-1);
                 dbEvent.EndTime = apiEvent.EndTime.UtcDateTime;
                 dbEvent.TimeZone = apiEvent.TimeZone.Id;
+                dbEvent.IsOfficial = request.IsOfficial;
                 context.Events.Update(dbEvent);
                 response.UpsertedEvents.Add(dbEvent);
             }
@@ -84,12 +85,12 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
             {
                 var newEvent = new Event
                 {
-                    Id = new Guid(),
+                    Id = Guid.NewGuid(),
                     SeasonId = season.Id,
                     Key = GenerateEventKey(),
                     Code = apiEvent.EventCode,
                     Name = apiEvent.Name,
-                    IsOfficial = request.DataSource is DataSources.FrcEvents or DataSources.FtcEvents,
+                    IsOfficial = request.IsOfficial,
                     StartTime = apiEvent.StartTime.UtcDateTime.AddDays(-1),
                     EndTime = apiEvent.EndTime.UtcDateTime,
                     TimeZone = apiEvent.TimeZone.Id,
@@ -145,6 +146,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
         
         public DataSources DataSource { get; set; }
         public string? DistrictCode { get; set; }
+        public bool IsOfficial { get; set; }
         public IEnumerable<string> EventCodes { get; set; } = [];
     }
 
