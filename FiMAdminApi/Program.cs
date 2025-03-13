@@ -6,6 +6,7 @@ using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Endpoints;
+using FiMAdminApi.EventHandlers;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Models.Enums;
@@ -18,6 +19,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.NameTranslation;
+using SlackNet;
 using Supabase;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -81,6 +83,12 @@ builder.Services.AddDbContext<DataContext>(opt =>
             .MapEnum<MatchWinner>("match_winner", nameTranslator: nullNameTranslator));
 });
 
+if (!string.IsNullOrEmpty(builder.Configuration["Slack:Token"]))
+{
+    builder.Services.AddSingleton(_ =>
+        new SlackServiceBuilder().UseApiToken(builder.Configuration["Slack:Token"]).GetApiClient());
+}
+
 // For most authn/authz we're using tokens directly from Supabase. These tokens get validated by the supabase auth
 // infrastructure
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -121,6 +129,7 @@ builder.Services.AddClients(builder.Environment.IsProduction());
 builder.Services.AddAvCartService();
 builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
+builder.Services.AddEventHandlers();
 
 var accountCred = await GoogleCredential.GetApplicationDefaultAsync();
 var credential = accountCred.CreateScoped(

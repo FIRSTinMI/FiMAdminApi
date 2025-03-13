@@ -1,6 +1,7 @@
 using FiMAdminApi.Clients;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.EventHandlers;
+using FiMAdminApi.Events;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FiMAdminApi.EventSync.Steps;
 
 // Note: this step runs while awaiting alliances to ensure that any replays are picked up
-public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStatus.QualsInProgress, EventStatus.AwaitingAlliances])
+public class UpdateQualResults(DataContext dbContext, EventPublisher eventPublisher) : EventSyncStep([EventStatus.QualsInProgress, EventStatus.AwaitingAlliances])
 {
     private static readonly TimeSpan MatchStartTolerance = TimeSpan.FromMinutes(1);
     
@@ -49,6 +50,12 @@ public class UpdateQualResults(DataContext dbContext) : EventSyncStep([EventStat
                 };
                 await dbContext.Matches.AddAsync(newMatch);
                 dbMatch = newMatch;
+            }
+
+            if (dbMatch.MatchNumber == 1 && dbMatch.PlayNumber == 1 && dbMatch.PostResultTime is null &&
+                apiMatch.PostResultTime is not null)
+            {
+                await eventPublisher.Publish(new Qual1ScoresPosted(evt));
             }
 
             dbMatch.ActualStartTime = apiMatch.ActualStartTime;
