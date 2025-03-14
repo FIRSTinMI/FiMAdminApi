@@ -61,6 +61,16 @@ public class BlueAllianceWriteClient : RestClient
         var response = await PerformRequest(request);
     }
 
+    public async Task AddMatchVideos(Season season, string eventCode, Dictionary<string, string> videos)
+    {
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/match_videos/add", videos);
+
+        var response = await PerformRequest(request);
+        Logger.LogInformation("{}", await response.Content.ReadAsStringAsync());
+
+        response.EnsureSuccessStatusCode();
+    }
+
     private HttpRequestMessage BuildRequest<TBody>(FormattableString endpoint, TBody body)
     {
         var jsonTypeInfo = BlueAllianceWriteJsonSerializer.Default.GetTypeInfo(typeof(TBody));
@@ -85,7 +95,7 @@ public class BlueAllianceWriteClient : RestClient
     
     private static string GetEventCode(Season season, string eventCode)
     {
-        return char.IsDigit(eventCode[0]) ? eventCode : $"{season.StartTime.Year}{eventCode}";
+        return char.IsDigit(eventCode[0]) ? eventCode : $"{season.StartTime.Year}{eventCode}".ToLower();
     }
 }
 
@@ -99,6 +109,7 @@ internal record EventInfoWebcastInfo(string Url, string? Date);
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(EventInfoRequest))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal partial class BlueAllianceWriteJsonSerializer : JsonSerializerContext
 {
 }

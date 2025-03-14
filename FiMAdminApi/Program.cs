@@ -176,6 +176,7 @@ app
     .RegisterEventSyncEndpoints(globalVs)
     .RegisterMatchesEndpoints(globalVs)
     .RegisterAvTokenEndpoints(globalVs)
-    .RegisterAvCartsEndpoints(globalVs);
+    .RegisterAvCartsEndpoints(globalVs)
+    .RegisterTbaWriteEndpoints(globalVs);
 
 app.Run();

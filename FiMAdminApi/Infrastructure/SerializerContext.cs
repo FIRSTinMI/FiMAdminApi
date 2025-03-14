@@ -30,6 +30,7 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenRequest))]
 [JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenResponse))]
 [JsonSerializable(typeof(AvCartsEndpoints.StreamInfo[]))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
