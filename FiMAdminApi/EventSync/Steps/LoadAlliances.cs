@@ -36,7 +36,8 @@ public class LoadAlliances(DataContext dbContext)
             dbAlliance.TeamNumbers = apiAlliance?.TeamNumbers.ToArray();
         }
         
-        evt.Status = EventStatus.AwaitingPlayoffs;
+        if (alliances.All(a => a.TeamNumbers.Count > 0))
+            evt.Status = EventStatus.AwaitingPlayoffs;
         await dbContext.SaveChangesAsync();
     }
 }
