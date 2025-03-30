@@ -120,9 +120,10 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
 
         // If an alliance has won 2 finals matches, they're the winner of the event
         if (await dbContext.Matches.Where(m =>
-                m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Playoff && m.MatchName != null &&
-                m.MatchName.StartsWith("Final")).GroupBy(m => m.Winner).CountAsync(g =>
-                (g.Key == MatchWinner.Red || g.Key == MatchWinner.Blue) && g.Count() == 2) > 0)
+                    m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Playoff && m.MatchName != null &&
+                    (m.MatchName.StartsWith("Final") || m.MatchName.StartsWith("Overtime"))).GroupBy(m => m.Winner)
+                .CountAsync(g =>
+                    (g.Key == MatchWinner.Red || g.Key == MatchWinner.Blue) && g.Count() == 2) > 0)
         {
             evt.Status = EventStatus.WinnerDetermined;
         }

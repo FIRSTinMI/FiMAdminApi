@@ -69,6 +69,7 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
         try
         {
             await syncStep.RunStep(evt, dataSource);
+            await dbContext.SaveChangesAsync();
             return new EventSyncResult(true);
         }
         catch (Exception ex)
