@@ -1,13 +1,14 @@
 using FiMAdminApi.Clients;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.EventHandlers;
+using FiMAdminApi.Events;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class LoadQualSchedule(DataContext dbContext) : EventSyncStep([EventStatus.AwaitingQuals])
+public class LoadQualSchedule(DataContext dbContext, EventPublisher eventPublisher) : EventSyncStep([EventStatus.AwaitingQuals])
 {
     public override async Task RunStep(Event evt, IDataClient dataClient)
     {
@@ -75,7 +76,11 @@ public class LoadQualSchedule(DataContext dbContext) : EventSyncStep([EventStatu
                 }
             }
 
-            evt.Status = EventStatus.QualsInProgress;
+            if (evt.Status == EventStatus.AwaitingQuals)
+            {
+                evt.Status = EventStatus.QualsInProgress;
+                await eventPublisher.Publish(new QualSchedulePublished(evt));
+            }
 
             await dbContext.SaveChangesAsync();
         }

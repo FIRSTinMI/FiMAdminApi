@@ -11,6 +11,7 @@ namespace FiMAdminApi.Clients.Models.FrcEvents;
 [JsonSerializable(typeof(GetMatches))]
 [JsonSerializable(typeof(GetAlliances))]
 [JsonSerializable(typeof(GetRankings))]
+[JsonSerializable(typeof(GetAwards))]
 [JsonSerializable(typeof(FrcEvents2025Tiebreak.ScoreDetailResponse))]
 internal partial class FrcEventsJsonSerializerContext : JsonSerializerContext
 {

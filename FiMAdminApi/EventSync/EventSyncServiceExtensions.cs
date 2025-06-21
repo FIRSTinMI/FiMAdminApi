@@ -14,7 +14,8 @@ public static class EventSyncServiceExtensions
             typeof(UpdateQualResults),
             typeof(UpdateQualRankings),
             typeof(LoadAlliances),
-            typeof(UpdatePlayoffResults)
+            typeof(UpdatePlayoffResults),
+            typeof(DetectEventOver),
         };
         
         foreach (var step in steps)

@@ -2,13 +2,15 @@ using FiMAdminApi.Clients;
 using FiMAdminApi.Clients.PlayoffTiebreaks;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.EventHandlers;
+using FiMAdminApi.Events;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffResults> logger)
+public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffResults> logger, EventPublisher eventPublisher)
     : EventSyncStep([EventStatus.AwaitingPlayoffs, EventStatus.PlayoffsInProgress])
 {
     private static readonly TimeSpan MatchStartTolerance = TimeSpan.FromMinutes(1);
@@ -119,13 +121,14 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
         await dbContext.SaveChangesAsync();
 
         // If an alliance has won 2 finals matches, they're the winner of the event
-        if (await dbContext.Matches.Where(m =>
+        if (evt.Status == EventStatus.PlayoffsInProgress && await dbContext.Matches.Where(m =>
                     m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Playoff && m.MatchName != null &&
                     (m.MatchName.StartsWith("Final") || m.MatchName.StartsWith("Overtime"))).GroupBy(m => m.Winner)
                 .CountAsync(g =>
                     (g.Key == MatchWinner.Red || g.Key == MatchWinner.Blue) && g.Count() == 2) > 0)
         {
             evt.Status = EventStatus.WinnerDetermined;
+            await eventPublisher.Publish(new PlayoffsComplete(evt));
         }
     }
 

@@ -100,6 +100,16 @@ public class FtcEventsDataClient : RestClient, IDataClient
         throw new NotImplementedException();
     }
 
+    public Task<List<Award>> GetAwardsForEvent(FiMAdminApi.Models.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static string GetWebUrl(WebUrlType type, FiMAdminApi.Models.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<string?> CheckHealth()
     {
         var resp = await PerformRequest(BuildGetRequest($""));

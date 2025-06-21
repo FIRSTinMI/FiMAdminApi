@@ -20,5 +20,6 @@ public interface IDataClient
     public Task<List<Alliance>> GetAlliancesForEvent(FiMAdminApi.Models.Models.Event evt);
     public Task<List<PlayoffMatch>> GetPlayoffResultsForEvent(FiMAdminApi.Models.Models.Event evt);
     public IPlayoffTiebreak GetPlayoffTiebreak(FiMAdminApi.Models.Models.Event evt);
+    public Task<List<Award>> GetAwardsForEvent(FiMAdminApi.Models.Models.Event evt);
     public Task<string?> CheckHealth();
 }

@@ -52,7 +52,7 @@ public class UpdateQualResults(DataContext dbContext, EventPublisher eventPublis
                 dbMatch = newMatch;
             }
 
-            if (dbMatch.MatchNumber == 1 && dbMatch.PlayNumber == 1 && dbMatch.PostResultTime is null &&
+            if (dbMatch is { MatchNumber: 1, PlayNumber: 1, PostResultTime: null } &&
                 apiMatch.PostResultTime is not null)
             {
                 await eventPublisher.Publish(new Qual1ScoresPosted(evt));
@@ -70,6 +70,7 @@ public class UpdateQualResults(DataContext dbContext, EventPublisher eventPublis
                 m.IsDiscarded == false && m.ActualStartTime == null) == 0)
         {
             evt.Status = EventStatus.AwaitingAlliances;
+            await eventPublisher.Publish(new QualsComplete(evt));
         }
     }
 

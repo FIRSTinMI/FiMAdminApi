@@ -257,6 +257,35 @@ public class FrcEventsDataClient : RestClient, IDataClient
         return new FrcEvents2025Tiebreak(this, evt);
     }
 
+    public async Task<List<Award>> GetAwardsForEvent(FiMAdminApi.Models.Models.Event evt)
+    {
+        var resp = await PerformRequest(
+            BuildGetRequest($"{GetSeason(evt.Season!)}/awards/event/{evt.Code}"));
+        resp.EnsureSuccessStatusCode();
+        var json = await resp.Content.ReadFromJsonAsync(FrcEventsJsonSerializerContext.Default.GetAwards) ??
+                   throw new MissingDataException("Unable to parse FrcEvents awards response");
+
+        return json.Awards.Select(a => new Award
+        {
+            Name = a.Name,
+            TeamNumber = a.TeamNumber
+        }).ToList();
+    }
+
+    public static string GetWebUrl(WebUrlType type, FiMAdminApi.Models.Models.Event evt)
+    {
+        var baseUrl =
+            ((FormattableString)$"https://frc-events.firstinspires.org/{GetSeason(evt.Season!)}/{evt.Code}")
+            .EncodeString(Uri.EscapeDataString);
+        return type switch
+        {
+            WebUrlType.Home => baseUrl,
+            WebUrlType.QualSchedule => $"{baseUrl}/qualifications",
+            WebUrlType.PlayoffSchedule => $"{baseUrl}/playoffs",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+        };
+    }
+
     public async Task<string?> CheckHealth()
     {
         var resp = await PerformRequest(BuildGetRequest($""));

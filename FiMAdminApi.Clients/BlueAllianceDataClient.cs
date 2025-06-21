@@ -42,7 +42,6 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         var response = await PerformRequest(BuildGetRequest($"event/{GetEventCode(season, eventCode)}"));
         response.EnsureSuccessStatusCode();
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-        Logger.LogInformation(json.RootElement.GetRawText());
 
         return ParseEvent(json.RootElement);
     }
@@ -93,6 +92,16 @@ public class BlueAllianceDataClient : RestClient, IDataClient
     }
 
     public IPlayoffTiebreak GetPlayoffTiebreak(FiMAdminApi.Models.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<Award>> GetAwardsForEvent(FiMAdminApi.Models.Models.Event evt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static string GetWebUrl(WebUrlType type, FiMAdminApi.Models.Models.Event evt)
     {
         throw new NotImplementedException();
     }
