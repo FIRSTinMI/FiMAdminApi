@@ -17,17 +17,9 @@ public class SlackService(ISlackApiClient? slackClient, IConfiguration configura
         var blocks = new List<Block>();
         if (!string.IsNullOrEmpty(buttonText) && !string.IsNullOrEmpty(buttonUrl))
         {
-            blocks.Add(new RichTextBlock
+            blocks.Add(new MarkdownBlock
             {
-                Elements = [
-                    new RichTextSection
-                    {
-                        Elements = [new RichTextText
-                        {
-                            Text = message
-                        }]
-                    }
-                ]
+                Text = message
             });
             blocks.Add(new ActionsBlock
             {
