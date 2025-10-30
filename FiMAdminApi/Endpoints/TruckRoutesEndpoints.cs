@@ -64,6 +64,18 @@ public static class TruckRoutesEndpoints
         }
 
         dbRoute.Name = request.Name;
+
+        if (request.EquipmentIds is not null)
+        {
+            var existingEquipment = await dbContext.Equipment.Where(e => e.TruckRouteId == dbRoute.Id).Select(e => e.Id)
+                .ToListAsync();
+            var addedEquipment = request.EquipmentIds.Except(existingEquipment);
+            var removedEquipment = existingEquipment.Except(request.EquipmentIds);
+            await dbContext.Equipment.Where(e => addedEquipment.Contains(e.Id))
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.TruckRouteId, dbRoute.Id));
+            await dbContext.Equipment.Where(e => removedEquipment.Contains(e.Id))
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.TruckRouteId, (int?)null));
+        }
         
         await dbContext.SaveChangesAsync();
 
@@ -80,5 +92,7 @@ public static class TruckRoutesEndpoints
     {
         [Required]
         public required string Name { get; set; }
+
+        public List<Guid>? EquipmentIds { get; set; }
     }
 }
