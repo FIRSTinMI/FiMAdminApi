@@ -1,13 +1,15 @@
 using FiMAdminApi.Clients;
+using FiMAdminApi.EventHandlers;
+using FiMAdminApi.Events;
 using FiMAdminApi.Models.Models;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class InitialSync() : EventSyncStep([EventStatus.NotStarted])
+public class InitialSync(EventPublisher eventPublisher) : EventSyncStep([EventStatus.NotStarted])
 {
-    public override Task RunStep(Event evt, IDataClient _)
+    public override async Task RunStep(Event evt, IDataClient _)
     {
         evt.Status = EventStatus.AwaitingQuals;
-        return Task.CompletedTask;
+        await eventPublisher.Publish(new EventStarted(evt));
     }
 }

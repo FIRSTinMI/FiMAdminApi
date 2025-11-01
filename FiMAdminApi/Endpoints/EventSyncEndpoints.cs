@@ -37,7 +37,8 @@ public static class EventSyncEndpoints
         [FromServices] DataContext context,
         [FromServices] EventSyncService service)
     {
-        var evt = await context.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        var evt = await context.Events.Include(e => e.Season).ThenInclude(s => s!.Level)
+            .FirstOrDefaultAsync(e => e.Id == eventId);
         if (evt is null) return TypedResults.NotFound();
 
         if (string.IsNullOrEmpty(evt.Code) || evt.SyncSource is null)
@@ -52,7 +53,8 @@ public static class EventSyncEndpoints
         [FromServices] DataContext context,
         [FromServices] EventSyncService service)
     {
-        var evt = await context.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        var evt = await context.Events.Include(e => e.Season).ThenInclude(s => s!.Level)
+            .FirstOrDefaultAsync(e => e.Id == eventId);
         if (evt is null) return TypedResults.NotFound();
 
         if (string.IsNullOrEmpty(evt.Code) || evt.SyncSource is null)
@@ -66,7 +68,7 @@ public static class EventSyncEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IServiceProvider serviceProvider)
     {
-        var events = await context.Events.Include(e => e.Season).Where(e =>
+        var events = await context.Events.Include(e => e.Season).ThenInclude(s => s!.Level).Where(e =>
             e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).ToListAsync();
 
         var isSuccess = true;

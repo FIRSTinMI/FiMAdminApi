@@ -40,6 +40,21 @@ public class SlackService(ISlackApiClient? slackClient, IConfiguration configura
         });
     }
 
+    public async Task SetEventInformationForUser(string userId, string eventName)
+    {
+        if (slackClient is null)
+        {
+            logger.LogError("Tried to update Slack profile but Slack wasn't configured");
+            return;
+        }
+        
+        await slackClient.UserProfile.Set(new UserProfile
+        {
+            RealName = eventName,
+            DisplayName = eventName
+        }, userId);
+    }
+
     private string GetSlackChannelId(SlackChannel channel)
     {
         var val = configuration

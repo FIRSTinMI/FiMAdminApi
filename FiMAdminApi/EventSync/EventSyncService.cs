@@ -18,7 +18,7 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
     public async Task<EventSyncResult> SyncEvent(Event evt)
     {
         dbContext.Events.Attach(evt);
-        if (evt.Season is null)
+        if (evt.Season?.Level is null)
             return new EventSyncResult(false, "Event season data is missing");
         if (evt.SyncSource is null || evt.Code is null)
             return new EventSyncResult(false, "Event not set up for syncing");

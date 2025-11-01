@@ -6,7 +6,7 @@ namespace FiMAdminApi.EventSync.Steps;
 /// <summary>
 /// We can assume that an event is truly over if there is a "*Winner*" or "*Winning*" award populated
 /// </summary>
-public class DetectEventOver() : EventSyncStep([EventStatus.WinnerDetermined])
+public class DetectEventOver() : EventSyncStep([EventStatus.PlayoffsInProgress, EventStatus.WinnerDetermined])
 {
     public override async Task RunStep(Event evt, IDataClient dataClient)
     {
