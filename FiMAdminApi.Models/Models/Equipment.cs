@@ -11,6 +11,7 @@ public class Equipment
     public EquipmentType? EquipmentType { get; set; }
     public int? TruckRouteId { get; set; }
     public TruckRoute? TruckRoute { get; set; }
+    public string? SlackUserId { get; set; }
 }
 
 public class Equipment<TConfig> : Equipment where TConfig : IEquipmentConfiguration

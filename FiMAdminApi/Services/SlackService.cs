@@ -40,7 +40,7 @@ public class SlackService(ISlackApiClient? slackClient, IConfiguration configura
         });
     }
 
-    public async Task SetEventInformationForUser(string userId, string eventName)
+    public async Task SetEventInformationForUser(string userId, string newName, string? token)
     {
         if (slackClient is null)
         {
@@ -48,10 +48,12 @@ public class SlackService(ISlackApiClient? slackClient, IConfiguration configura
             return;
         }
         
-        await slackClient.UserProfile.Set(new UserProfile
+        logger.LogInformation("Setting {userid} to {name}", userId, newName);
+        
+        await slackClient.WithAccessToken(token ?? configuration["Slack:PersonalToken"]).UserProfile.Set(new UserProfile
         {
-            RealName = eventName,
-            DisplayName = eventName
+            RealName = newName,
+            DisplayName = newName
         }, userId);
     }
 
