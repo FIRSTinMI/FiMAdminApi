@@ -13,6 +13,8 @@ public static class EventHandlersServiceCollectionExtensions
         services.AddTransient<IEventHandler<Events.QualSchedulePublished>, EventAlertsSlackMessage>();
         services.AddTransient<IEventHandler<Events.QualsComplete>, EventAlertsSlackMessage>();
         services.AddTransient<IEventHandler<Events.PlayoffsComplete>, EventAlertsSlackMessage>();
+        services.AddTransient<IEventHandler<Events.EventStarted>, SetEquipmentSlackProfile>();
+        services.AddTransient<IEventHandler<Events.EventCompleted>, SetEquipmentSlackProfile>();
 
         return services;
     }
