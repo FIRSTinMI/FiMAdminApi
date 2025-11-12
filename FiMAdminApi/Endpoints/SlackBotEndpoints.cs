@@ -24,7 +24,7 @@ public static class SlackBotEndpoints
         [FromServices] DataContext dataContext,
         [FromServices] ISlackApiClient slackClient,
         [FromServices] IConfiguration config,
-        [FromServices] DataContext dbContext,
+        [FromServices] VaultService vaultService,
         [FromQuery] string code)
     {
         var clientId = config["Slack:ClientId"];
@@ -34,7 +34,7 @@ public static class SlackBotEndpoints
 
         if (tokenResp.AuthedUser == null) return TypedResults.Ok("You can close this tab.");
         var secretName = $"slack_token:{tokenResp.AuthedUser.Id}";
-        await dbContext.Database.ExecuteSqlAsync($"select vault.create_secret({tokenResp.AuthedUser.AccessToken}, {secretName})");
+        await vaultService.UpsertSecret(secretName, tokenResp.AuthedUser.AccessToken);
         return TypedResults.Ok("You can close this tab.");
     }
 }
