@@ -178,6 +178,7 @@ app
     .RegisterMatchesEndpoints(globalVs)
     .RegisterAvTokenEndpoints(globalVs)
     .RegisterAvCartsEndpoints(globalVs)
-    .RegisterTbaWriteEndpoints(globalVs);
+    .RegisterTbaWriteEndpoints(globalVs)
+    .RegisterTwitchEndpoints(globalVs);
 
 app.Run();

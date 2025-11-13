@@ -31,6 +31,9 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenResponse))]
 [JsonSerializable(typeof(AvCartsEndpoints.StreamInfo[]))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(TwitchEndpoints.ExchangeCodeRequest))]
+[JsonSerializable(typeof(TwitchEndpoints.TwitchTokenResponse))]
+[JsonSerializable(typeof(TwitchEndpoints.TwitchConnectResponse))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
