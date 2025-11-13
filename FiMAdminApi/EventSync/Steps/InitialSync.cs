@@ -10,6 +10,10 @@ public class InitialSync(EventPublisher eventPublisher) : EventSyncStep([EventSt
     public override async Task RunStep(Event evt, IDataClient _)
     {
         evt.Status = EventStatus.AwaitingQuals;
-        await eventPublisher.Publish(new EventStarted(evt));
+        
+        if (evt.EndTime > DateTime.UtcNow)
+        {
+            await eventPublisher.Publish(new EventStarted(evt));
+        }
     }
 }

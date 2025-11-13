@@ -1,4 +1,6 @@
 using FiMAdminApi.Clients;
+using FiMAdminApi.EventHandlers;
+using FiMAdminApi.Events;
 using FiMAdminApi.Models.Models;
 
 namespace FiMAdminApi.EventSync.Steps;
@@ -6,7 +8,7 @@ namespace FiMAdminApi.EventSync.Steps;
 /// <summary>
 /// We can assume that an event is truly over if there is a "*Winner*" or "*Winning*" award populated
 /// </summary>
-public class DetectEventOver() : EventSyncStep([EventStatus.PlayoffsInProgress, EventStatus.WinnerDetermined])
+public class DetectEventOver(EventPublisher eventPublisher) : EventSyncStep([EventStatus.PlayoffsInProgress, EventStatus.WinnerDetermined])
 {
     public override async Task RunStep(Event evt, IDataClient dataClient)
     {
@@ -15,6 +17,7 @@ public class DetectEventOver() : EventSyncStep([EventStatus.PlayoffsInProgress, 
         if (awards.Any(a => a.TeamNumber != null && (a.Name.Contains("Winner") || a.Name.Contains("Winning"))))
         {
             evt.Status = EventStatus.Completed;
+            await eventPublisher.Publish(new EventCompleted(evt));
         }
     }
 }
