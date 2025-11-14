@@ -19,6 +19,7 @@ public static class ClientsStartupExtensions
         services.AddKeyedScoped<IDataClient, BlueAllianceDataClient>(DataSources.BlueAlliance);
         services.AddKeyedScoped<IDataClient, FtcEventsDataClient>(DataSources.FtcEvents);
         services.AddScoped<BlueAllianceWriteClient>();
+        services.AddScoped<OrangeAllianceDataClient>();
     }
 
     public static IHealthChecksBuilder AddClientHealthChecks(this IHealthChecksBuilder builder)

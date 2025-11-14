@@ -127,6 +127,8 @@ builder.Services.AddScoped<EventTeamsService>();
 builder.Services.AddScoped<EventRepository>();
 builder.Services.AddScoped<SlackService>();
 builder.Services.AddScoped<VaultService>();
+builder.Services.AddScoped<TwitchService>();
+builder.Services.AddScoped<EventStreamService>();
 builder.Services.AddClients(builder.Environment.IsProduction());
 builder.Services.AddAvCartService();
 builder.Services.AddEventSyncSteps();
@@ -180,6 +182,8 @@ app
     .RegisterAvTokenEndpoints(globalVs)
     .RegisterAvCartsEndpoints(globalVs)
     .RegisterTbaWriteEndpoints(globalVs)
+    .RegisterTwitchEndpoints(globalVs)
+    .RegisterEventStreamEndpoints(globalVs)
     .RegisterSlackBotEndpoints(globalVs);
 
 app.Run();
