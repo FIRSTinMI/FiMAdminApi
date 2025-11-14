@@ -64,6 +64,7 @@ public static class TruckRoutesEndpoints
         }
 
         dbRoute.Name = request.Name;
+        dbRoute.Streaming_Config = request.Streaming_Config;
 
         if (request.EquipmentIds is not null)
         {
@@ -94,5 +95,7 @@ public static class TruckRoutesEndpoints
         public required string Name { get; set; }
 
         public List<Guid>? EquipmentIds { get; set; }
+
+        public StreamingConfig? Streaming_Config { get; set; }
     }
 }

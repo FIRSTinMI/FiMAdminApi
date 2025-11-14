@@ -2,6 +2,7 @@ using Asp.Versioning.Builder;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
+using FiMAdminApi.Data.EfPgsql;
 
 namespace FiMAdminApi.Endpoints;
 
@@ -17,33 +18,46 @@ public static class TwitchEndpoints
             .WithSummary("Begin Twitch authorization (redirect)")
             .WithDescription("Redirects the user agent to Twitch's /authorize endpoint to start the OAuth authorization code flow.");
 
-        routeGroup.MapPost("/exchange-code", ExchangeCode)
-            .WithSummary("Exchange Twitch authorization code for tokens")
-            .WithDescription("Exchanges an authorization code returned by Twitch for an access token and refresh token.");
+        routeGroup.MapPost("/set-code", SetCode)
+            .WithSummary("Update authorization code for tokens")
+            .WithDescription("Updates an authorization code returned by Twitch for an access token and refresh token.");
+
+        routeGroup.MapGet("/scopes", GetTwitchScopes)
+            .WithSummary("List Twitch scopes in Vault")
+            .WithDescription("Returns all vault secrets with keys starting with 'twitch:scope:' as a mapping of key -> scopes string.");
 
         return app;
     }
 
-    private static async Task<Results<Ok<TwitchTokenResponse>, ProblemHttpResult>> ExchangeCode(
-        [FromBody] ExchangeCodeRequest request,
-        [FromServices] TwitchService twitchService)
+    private static async Task<Results<Ok, ProblemHttpResult>> SetCode(
+        [FromBody] SetCodeRequest request,
+        [FromServices] TwitchService twitchService,
+        [FromServices] VaultService vaultService)
     {
-        if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.RedirectUri))
+        if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Scope))
         {
-            return TypedResults.Problem("code and redirectUri are required");
+            return TypedResults.Problem("code and scope are required");
         }
 
         var token = await twitchService.ExchangeCodeForTokenAsync(request.Code, request.RedirectUri);
 
-        var resp = new TwitchTokenResponse(
-            token.AccessToken,
-            token.RefreshToken,
-            token.ExpiresIn,
-            token.Scope,
-            token.TokenType
-        );
+        // Get channel info from token
+        var user = await twitchService.GetUserFromAccessTokenAsync(token.AccessToken);
 
-        return TypedResults.Ok(resp);
+        // persist tokens in vault
+        try
+        {
+            await vaultService.UpsertSecret($"twitch:access_token:{user.Login}", token.AccessToken);
+            await vaultService.UpsertSecret($"twitch:refresh_token:{user.Login}", token.RefreshToken);
+            await vaultService.UpsertSecret($"twitch:expires_at:{user.Login}", DateTime.UtcNow.AddSeconds(token.ExpiresIn).ToString("o"));
+            await vaultService.UpsertSecret($"twitch:scope:{user.Login}", string.Join(" ", token.Scopes));
+        }
+        catch
+        {
+            // don't fail the request if vault write fails; just log or ignore here
+        }
+
+        return TypedResults.Ok();
     }
 
     private static Results<Ok<TwitchConnectResponse>, ProblemHttpResult> Connect(
@@ -95,8 +109,52 @@ public static class TwitchEndpoints
         return TypedResults.Ok(resp);
     }
 
-    public record ExchangeCodeRequest(string Code, string RedirectUri);
-    public record TwitchTokenResponse(string AccessToken, string RefreshToken, int ExpiresIn, string[] Scope, string TokenType);
+    public record TwitchScopeInfo(string? Scopes, string? ExpiresAt);
+
+    private static async Task<Results<Ok<Dictionary<string, TwitchScopeInfo>>, ProblemHttpResult>> GetTwitchScopes([
+        FromServices] VaultService vaultService)
+    {
+        try
+        {
+            var scopePrefix = "twitch:scope:";
+            var expiresPrefix = "twitch:expires_at:";
+
+            var scopes = await vaultService.GetSecretsByPrefix(scopePrefix);
+            var expires = await vaultService.GetSecretsByPrefix(expiresPrefix);
+
+            var result = new Dictionary<string, TwitchScopeInfo>(StringComparer.OrdinalIgnoreCase);
+
+            // include channels that have scopes
+            foreach (var kv in scopes)
+            {
+                var name = kv.Key;
+                if (!name.StartsWith(scopePrefix, StringComparison.OrdinalIgnoreCase)) continue;
+                var channel = name.Substring(scopePrefix.Length);
+                expires.TryGetValue(expiresPrefix + channel, out var expVal);
+                result[channel] = new TwitchScopeInfo(kv.Value, expVal);
+            }
+
+            // include channels that have expires but no scopes
+            foreach (var kv in expires)
+            {
+                var name = kv.Key;
+                if (!name.StartsWith(expiresPrefix, StringComparison.OrdinalIgnoreCase)) continue;
+                var channel = name.Substring(expiresPrefix.Length);
+                if (!result.ContainsKey(channel))
+                {
+                    result[channel] = new TwitchScopeInfo(null, kv.Value);
+                }
+            }
+
+            return TypedResults.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    public record SetCodeRequest(string Code, string Scope, string RedirectUri);
 
     public record TwitchConnectResponse(string AuthorizeUrl, string State);
 }

@@ -31,9 +31,11 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(AvTokenEndpoints.CreateAvTokenResponse))]
 [JsonSerializable(typeof(AvCartsEndpoints.StreamInfo[]))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
-[JsonSerializable(typeof(TwitchEndpoints.ExchangeCodeRequest))]
-[JsonSerializable(typeof(TwitchEndpoints.TwitchTokenResponse))]
+[JsonSerializable(typeof(TwitchEndpoints.SetCodeRequest))]
 [JsonSerializable(typeof(TwitchEndpoints.TwitchConnectResponse))]
+[JsonSerializable(typeof(TwitchEndpoints.TwitchScopeInfo))]
+[JsonSerializable(typeof(Dictionary<string, TwitchEndpoints.TwitchScopeInfo>))]
+[JsonSerializable(typeof(EventStreamEndpoints.CreateEventStreamsRequest))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
