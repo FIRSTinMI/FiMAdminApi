@@ -33,7 +33,7 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
         {
             runAgain = false;
             foreach (var step in syncSteps.Where(s =>
-                         !alreadyRunSteps.Contains(s.GetType()) && s.ShouldRun(evt.Status)))
+                         !alreadyRunSteps.Contains(s.GetType()) && s.ShouldRun(evt)))
             {
                 logger.LogInformation("Running sync step {stepName} for event code {code}", step.GetType().Name,
                     evt.Code);

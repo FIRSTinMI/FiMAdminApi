@@ -63,13 +63,18 @@ public static class EventSyncEndpoints
         return TypedResults.Ok(await service.ForceEventSyncStep(evt, syncStepName));
     }
 
+    private static readonly EventStatus[] InactiveStatuses = [EventStatus.NotStarted, EventStatus.Completed];
+
     private static async Task<Results<Ok<EventSyncResult>, BadRequest<EventSyncResult>>> SyncCurrentEvents(
         [FromServices] DataContext context,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IServiceProvider serviceProvider)
     {
         var events = await context.Events.Include(e => e.Season).ThenInclude(s => s!.Level).Where(e =>
-            e.SyncSource != null && e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow).ToListAsync();
+            e.SyncSource != null && (
+                (e.StartTime <= DateTime.UtcNow && e.EndTime >= DateTime.UtcNow) ||
+                !InactiveStatuses.Contains(e.Status)
+            )).ToListAsync();
 
         var isSuccess = true;
         var successLock = new Lock();
