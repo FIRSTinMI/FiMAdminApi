@@ -11,27 +11,28 @@ public class EventAlertsSlackMessage(SlackService slackService) :
     IEventHandler<QualsComplete>,
     IEventHandler<PlayoffsComplete>
 {
-    private bool TmpIgnoreEvents(Event evt)
+    private static bool IsEventEligible(Event evt)
     {
-        return evt.Season?.Level?.Name != "FRC";
+        return evt.Season?.Level?.Name == "FRC" && evt.StartTime <= DateTime.UtcNow && evt.EndTime >= DateTime.UtcNow &&
+               !evt.Name.Contains("Test Event");
     }
     
     public async Task Handle(QualSchedulePublished evt)
     {
-        if (TmpIgnoreEvents(evt.Event)) return;
+        if (!IsEventEligible(evt.Event)) return;
         await SendMessage($"{evt.Event.Name} has published their qualification schedule", "View Schedule",
             evt.Event.GetWebUrl(WebUrlType.QualSchedule));
     }
 
     public async Task Handle(QualsComplete evt)
     {
-        if (TmpIgnoreEvents(evt.Event)) return;
+        if (!IsEventEligible(evt.Event)) return;
         await SendMessage($"{evt.Event.Name} has finished their qualification matches", null, null);
     }
 
     public async Task Handle(PlayoffsComplete evt)
     {
-        if (TmpIgnoreEvents(evt.Event)) return;
+        if (!IsEventEligible(evt.Event)) return;
         if (evt.Event.EndTime < DateTime.UtcNow) return;
         await SendMessage($"{evt.Event.Name} has completed their event", null, null);
     }
