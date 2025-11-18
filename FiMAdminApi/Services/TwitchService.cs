@@ -1,13 +1,7 @@
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using FiMAdminApi.Data.EfPgsql;
 namespace FiMAdminApi.Services;
 
-public class TwitchService(IConfiguration configuration, ILogger<EventStreamService> logger, VaultService vaultService)
+public class TwitchService(IConfiguration configuration, ILogger<TwitchService> logger, VaultService vaultService)
 {
     // Get an access token for simple basic API access 
     public async Task<string> GetAppAccessToken()
@@ -34,21 +28,6 @@ public class TwitchService(IConfiguration configuration, ILogger<EventStreamServ
         if (string.IsNullOrWhiteSpace(channel))
         {
             return string.Empty;
-        }
-
-        // if the value already looks like an id (digits only), return it directly
-        var isDigits = true;
-        foreach (var ch in channel)
-        {
-            if (!char.IsDigit(ch))
-            {
-                isDigits = false;
-                break;
-            }
-        }
-        if (isDigits)
-        {
-            return channel;
         }
 
         try
@@ -242,7 +221,6 @@ public class TwitchService(IConfiguration configuration, ILogger<EventStreamServ
             {
                 var newExpiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn.Value);
                 await vaultService.UpsertSecret(expiresKey, newExpiresAt.ToString("o"));
-                expiresAt = newExpiresAt;
             }
             if (!string.IsNullOrWhiteSpace(scopeStr))
             {

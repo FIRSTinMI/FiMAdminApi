@@ -33,7 +33,8 @@ public static class TwitchEndpoints
     private static async Task<Results<Ok, ProblemHttpResult>> SetCode(
         [FromBody] SetCodeRequest request,
         [FromServices] TwitchService twitchService,
-        [FromServices] VaultService vaultService)
+        [FromServices] VaultService vaultService,
+        [FromServices] ILogger logger)
     {
         if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Scope))
         {
@@ -55,7 +56,7 @@ public static class TwitchEndpoints
         }
         catch
         {
-            // don't fail the request if vault write fails; just log or ignore here
+            logger.LogError("Error saving Twitch tokens to vault for channel {Channel}", user.Login);
         }
 
         return TypedResults.Ok();

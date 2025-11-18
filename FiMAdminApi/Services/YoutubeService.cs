@@ -188,8 +188,9 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
     /// <returns>True if update succeeded; false otherwise.</returns>
     public async Task<bool> UpdateLiveStreamNowAsync(string acctEmail, string title, string description, byte[]? thumbnailData = null)
     {
+        if (string.IsNullOrWhiteSpace(acctEmail)) throw new ArgumentNullException(nameof(acctEmail));
+
         var accessToken = await GetAuthorizationToken(acctEmail);
-        if (string.IsNullOrWhiteSpace(accessToken)) throw new ArgumentNullException(nameof(accessToken));
 
         try
         {

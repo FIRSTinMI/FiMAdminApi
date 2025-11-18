@@ -34,6 +34,14 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                 continue;
             }
 
+            // skip if no streaming channel id or type
+            if (string.IsNullOrWhiteSpace(truckRouteData.StreamingConfig.Channel_Id) ||
+                string.IsNullOrWhiteSpace(truckRouteData.StreamingConfig.Channel_Type))
+            {
+                logger.LogWarning("Truck route {TruckRouteId} has incomplete streaming config for event {EventId}; skipping stream creation", truckRouteData.Id, evt.Id);
+                continue;
+            }
+
             // create the stream based on provider
             var streamKey = string.Empty;
             var rtmpUrl = string.Empty;
@@ -49,12 +57,12 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
             {
                 case Models.Enums.DataSources.FtcEvents:
                     prefix = "MI FTC";
-                    description = $"https://ftc.events/${evt.Code}";
+                    description = $"https://ftc.events/{evt.Code}";
                     descriptionShort = $" ftc.events/{evt.Code}";
                     break;
                 case Models.Enums.DataSources.FrcEvents:
                     prefix = "MI FRC";
-                    description = $"https://frc.events/${evt.Code}";
+                    description = $"https://frc.events/{evt.Code}";
                     descriptionShort = $" frc.events/{evt.Code}";
                     break;
                 case Models.Enums.DataSources.BlueAlliance:
@@ -77,13 +85,31 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                     if (twitchSuccess)
                     {
                         streamKey = await twitchService.GetStreamKey(truckRouteData.StreamingConfig.Channel_Id!);
-                        rtmpUrl = "rtmp://use20.contribute.live-video.net/app/"; // bad practice 101
+                        var config = services.GetService<IConfiguration>();
+                        if (config != null)
+                        {
+                            var configuredRtmp = config["Twitch:RtmpUrl"];
+                            if (!string.IsNullOrWhiteSpace(configuredRtmp))
+                            {
+                                rtmpUrl = configuredRtmp;
+                            }
+                            else
+                            {
+                                logger.LogWarning("Twitch:RtmpUrl not set in configuration; falling back to default RTMP URL for channel {ChannelId}", truckRouteData.StreamingConfig.Channel_Id);
+                                rtmpUrl = "rtmp://use20.contribute.live-video.net/app/";
+                            }
+                        }
+                        else
+                        {
+                            logger.LogWarning("IConfiguration service unavailable; falling back to default RTMP URL for channel {ChannelId}", truckRouteData.StreamingConfig.Channel_Id);
+                            rtmpUrl = "rtmp://use20.contribute.live-video.net/app/";
+                        }
                         embedUrl = $"https://player.twitch.tv/?channel={truckRouteData.StreamingConfig.Channel_Id}";
                         channelUrl = $"https://www.twitch.tv/{truckRouteData.StreamingConfig.Channel_Id}";
                     }
                 }
             }
-            else if (truckRouteData.StreamingConfig.Channel_Type == "youtube")
+            else if (provider == "youtube")
             {
                 logger.LogInformation("Creating YouTube event stream for event {EventId}", evt.Id);
                 var youtubeService = services.GetService<YoutubeService>();
@@ -130,7 +156,7 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                 var cart = dataContext.AvCarts.FirstOrDefault(e => e.TruckRouteId == truckRouteData.Id);
                 if (cart != null)
                 {
-                    await cart.SetFirstStreamInfo(rtmpUrl, streamKey);
+                    cart.SetFirstStreamInfo(rtmpUrl, streamKey);
                     await dataContext.SaveChangesAsync();
                 }
             }
@@ -162,10 +188,4 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
             }
         }
     }
-}
-
-public enum StreamProvider
-{
-    Twitch,
-    YouTube,
 }

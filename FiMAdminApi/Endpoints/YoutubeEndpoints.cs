@@ -55,7 +55,8 @@ public static class YoutubeEndpoints
     private static async Task<Results<Ok, ProblemHttpResult>> SetCode(
         [FromBody] YoutubeSetCodeRequest request,
         [FromServices] YoutubeService youtubeService,
-        [FromServices] FiMAdminApi.Data.EfPgsql.VaultService vaultService)
+        [FromServices] VaultService vaultService,
+        [FromServices] ILogger logger)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Code))
             return TypedResults.Problem("code is required");
@@ -86,14 +87,14 @@ public static class YoutubeEndpoints
                     var expiresAt = DateTime.UtcNow.AddSeconds(token.ExpiresInSeconds.Value);
                     await vaultService.UpsertSecret($"google:expires_at:{identifier}", expiresAt.ToString("o"));
                 }
-                    if (!string.IsNullOrWhiteSpace(request.Scope))
-                    {
-                        await vaultService.UpsertSecret($"google:scope:{identifier}", request.Scope);
-                    }
+                if (!string.IsNullOrWhiteSpace(request.Scope))
+                {
+                    await vaultService.UpsertSecret($"google:scope:{identifier}", request.Scope);
+                }
             }
             catch
             {
-                // don't fail the request if vault write fails; just continue
+                logger.LogError("Error saving YouTube tokens to vault for account {Account}", identifier);
             }
 
             return TypedResults.Ok();

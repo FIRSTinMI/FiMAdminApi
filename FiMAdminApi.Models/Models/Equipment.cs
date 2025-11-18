@@ -38,7 +38,7 @@ public class AvConfiguration : IEquipmentConfiguration
 
 public class AvCartEquipment : Equipment<AvConfiguration>
 {
-    public async Task SetFirstStreamInfo(string rtmpUrl, string streamKey)
+    public void SetFirstStreamInfo(string rtmpUrl, string streamKey)
     {
         if (Configuration == null)
         {
