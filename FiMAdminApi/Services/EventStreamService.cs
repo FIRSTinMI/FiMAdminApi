@@ -148,11 +148,16 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                         continue;
                     }
                     // Update the event stream
+                    if (provider == null)
+                    {
+                        logger.LogWarning("Stream provider is null for event {EventId} with FTCEvents key {FTCEventsKey}", evt.Id, evt.Code);
+                        continue;
+                    }
                     await oaClient.UpdateEventStream(
                         toaEventKey,
                         truckRouteData.Name,
                         evt.Name,
-                        provider!,
+                        provider,
                         embedUrl,
                         channelUrl,
                         evt.StartTime,
