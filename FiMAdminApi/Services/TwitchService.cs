@@ -9,10 +9,6 @@ namespace FiMAdminApi.Services;
 
 public class TwitchService(IConfiguration configuration, ILogger<EventStreamService> logger, VaultService vaultService)
 {
-    // simple in-memory cache for the app access token
-    private static string? _cachedAccessToken;
-    private static DateTimeOffset _cachedAccessTokenExpiry = DateTimeOffset.MinValue;
-
     // Get an access token for simple basic API access 
     public async Task<string> GetAppAccessToken()
     {

@@ -3,6 +3,7 @@ using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Models.Enums;
 
 namespace FiMAdminApi.Endpoints;
 
@@ -12,7 +13,7 @@ public static class TwitchEndpoints
     {
         var routeGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/twitch")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Twitch")
-            .AllowAnonymous();
+            .RequireAuthorization(nameof(GlobalPermission.Superuser));
 
         routeGroup.MapGet("/connect", Connect)
             .WithSummary("Begin Twitch authorization (redirect)")

@@ -1,13 +1,12 @@
 using System.ComponentModel.DataAnnotations;
-using FiMAdminApi.Auth;
 using System.Security.Claims;
 using FiMAdminApi.Data.EfPgsql;
-using FiMAdminApi.Models.Models;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FiMAdminApi.Models.Enums;
 
 namespace FiMAdminApi.Endpoints;
 
@@ -17,7 +16,7 @@ public static class EventStreamEndpoints
     {
         var group = app.MapGroup("/api/v{apiVersion:apiVersion}/event-streams")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("EventStreams")
-            .RequireAuthorization();
+            .RequireAuthorization(nameof(GlobalPermission.Superuser));
 
         group.MapPost("", CreateEventStreams)
             .WithDescription("Create or update event streams for a set of events");
@@ -40,13 +39,6 @@ public static class EventStreamEndpoints
             var errs = new Dictionary<string, string[]> { { "EventIds", new[] { "Required" } } };
             return TypedResults.ValidationProblem(errs);
         }
-
-        // Require global Events_Manage permission to operate across multiple events
-        var authResult = await authSvc.AuthorizeAsync(user, request.EventIds[0], new EventAuthorizationRequirement
-        {
-            NeededGlobalPermission = FiMAdminApi.Models.Enums.GlobalPermission.Events_Manage
-        });
-        if (!authResult.Succeeded) return TypedResults.Forbid();
 
         var events = await dbContext.Events
             .Where(e => request.EventIds.Contains(e.Id))

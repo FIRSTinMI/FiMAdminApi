@@ -17,6 +17,6 @@ public class TruckRoute
     
     public required string Name { get; set; }
 
-    public StreamingConfig? Streaming_Config { get; set; }
+    public StreamingConfig? StreamingConfig { get; set; }
     
 }

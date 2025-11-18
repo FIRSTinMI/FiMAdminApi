@@ -36,6 +36,10 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(TwitchEndpoints.TwitchScopeInfo))]
 [JsonSerializable(typeof(Dictionary<string, TwitchEndpoints.TwitchScopeInfo>))]
 [JsonSerializable(typeof(EventStreamEndpoints.CreateEventStreamsRequest))]
+[JsonSerializable(typeof(YoutubeEndpoints.YoutubeConnectResponse))]
+[JsonSerializable(typeof(YoutubeEndpoints.YoutubeScopeInfo))]
+[JsonSerializable(typeof(Dictionary<string, YoutubeEndpoints.YoutubeScopeInfo>))]
+[JsonSerializable(typeof(YoutubeEndpoints.YoutubeSetCodeRequest))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }

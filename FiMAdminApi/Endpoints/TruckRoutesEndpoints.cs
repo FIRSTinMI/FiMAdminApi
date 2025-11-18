@@ -1,8 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using Asp.Versioning.Builder;
-using FiMAdminApi.Clients;
-using FiMAdminApi.Clients.Models;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
@@ -64,7 +61,7 @@ public static class TruckRoutesEndpoints
         }
 
         dbRoute.Name = request.Name;
-        dbRoute.Streaming_Config = request.Streaming_Config;
+        dbRoute.StreamingConfig = request.StreamingConfig;
 
         if (request.EquipmentIds is not null)
         {
@@ -96,6 +93,6 @@ public static class TruckRoutesEndpoints
 
         public List<Guid>? EquipmentIds { get; set; }
 
-        public StreamingConfig? Streaming_Config { get; set; }
+        public StreamingConfig? StreamingConfig { get; set; }
     }
 }
