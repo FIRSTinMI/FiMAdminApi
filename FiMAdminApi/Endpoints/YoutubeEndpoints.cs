@@ -1,0 +1,155 @@
+using Asp.Versioning.Builder;
+using FiMAdminApi.Services;
+using FiMAdminApi.Data.EfPgsql;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.HttpResults;
+using FiMAdminApi.Models.Enums;
+
+namespace FiMAdminApi.Endpoints;
+
+public static class YoutubeEndpoints
+{
+    public static WebApplication RegisterYoutubeEndpoints(this WebApplication app, ApiVersionSet vs)
+    {
+        var routeGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/youtube")
+            .WithApiVersionSet(vs).HasApiVersion(1).WithTags("YouTube")
+            .RequireAuthorization(nameof(GlobalPermission.Superuser));
+
+        routeGroup.MapGet("/connect", Connect)
+            .WithSummary("Begin YouTube authorization (get URL)")
+            .WithDescription("Returns the Google OAuth2 authorization URL that a user should visit to authorize the application.");
+
+        routeGroup.MapPost("/set-code", SetCode)
+            .WithSummary("Exchange authorization code for tokens and persist them")
+            .WithDescription("Exchanges a Google OAuth code for access/refresh tokens and stores them in the vault. Accepts `code` and optional `scope` and `redirectUri` in the request body.");
+
+        routeGroup.MapGet("/scopes", GetYoutubeScopes)
+            .WithSummary("List Google scopes in Vault")
+            .WithDescription("Returns all vault secrets with keys starting with 'google:scope:' as a mapping of email -> scopes string and expiry.");
+
+        return app;
+    }
+
+    private static Results<Ok<YoutubeConnectResponse>, ProblemHttpResult> Connect(
+        [FromServices] YoutubeService youtubeService,
+        [FromQuery] string? state,
+        [FromQuery] string? redirectUri)
+    {
+        try
+        {
+            var url = youtubeService.GetAuthorizationUrl(state);
+            if (!string.IsNullOrWhiteSpace(redirectUri))
+            {
+                var sep = url.Contains('?') ? '&' : '?';
+                url = url + sep + "redirect_uri=" + Uri.EscapeDataString(redirectUri);
+            }
+
+            return TypedResults.Ok(new YoutubeConnectResponse(url, state ?? string.Empty));
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok, ProblemHttpResult>> SetCode(
+        [FromBody] YoutubeSetCodeRequest request,
+        [FromServices] YoutubeService youtubeService,
+        [FromServices] VaultService vaultService,
+        [FromServices] ILogger logger)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Code))
+            return TypedResults.Problem("code is required");
+
+        try
+        {
+            var token = await youtubeService.ExchangeCodeForTokenAsync(request.Code, request.RedirectUri ?? string.Empty);
+            if (token is null || string.IsNullOrWhiteSpace(token.AccessToken))
+                return TypedResults.Problem("Failed to exchange code for token");
+
+            // Identify account: prefer email, then channelId, then sub
+            var user = await youtubeService.GetUserFromAccessTokenAsync(token.AccessToken);
+            var identifier = user?.email;
+
+            if (string.IsNullOrWhiteSpace(identifier))
+            {
+                throw new ApplicationException("Could not identify Google account from token response");
+            }
+
+            // persist tokens in vault
+            try
+            {
+                await vaultService.UpsertSecret($"google:access_token:{identifier}", token.AccessToken ?? string.Empty);
+                await vaultService.UpsertSecret($"google:refresh_token:{identifier}", token.RefreshToken);
+
+                if (token.ExpiresInSeconds.HasValue)
+                {
+                    var expiresAt = DateTime.UtcNow.AddSeconds(token.ExpiresInSeconds.Value);
+                    await vaultService.UpsertSecret($"google:expires_at:{identifier}", expiresAt.ToString("o"));
+                }
+                if (!string.IsNullOrWhiteSpace(request.Scope))
+                {
+                    await vaultService.UpsertSecret($"google:scope:{identifier}", request.Scope);
+                }
+            }
+            catch
+            {
+                logger.LogError("Error saving YouTube tokens to vault for account {Account}", identifier);
+            }
+
+            return TypedResults.Ok();
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok<Dictionary<string, YoutubeScopeInfo>>, ProblemHttpResult>> GetYoutubeScopes([
+        FromServices] VaultService vaultService)
+    {
+        try
+        {
+            var scopePrefix = "google:scope:";
+            var expiresPrefix = "google:expires_at:";
+
+            var scopes = await vaultService.GetSecretsByPrefix(scopePrefix);
+            var expires = await vaultService.GetSecretsByPrefix(expiresPrefix);
+
+            var result = new Dictionary<string, YoutubeScopeInfo>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kv in scopes)
+            {
+                var name = kv.Key;
+                if (!name.StartsWith(scopePrefix, StringComparison.OrdinalIgnoreCase)) continue;
+                var ident = name.Substring(scopePrefix.Length);
+                expires.TryGetValue(expiresPrefix + ident, out var expVal);
+                result[ident] = new YoutubeScopeInfo(kv.Value, expVal);
+            }
+
+            // include identifiers that have expires but no scopes
+            foreach (var kv in expires)
+            {
+                var name = kv.Key;
+                if (!name.StartsWith(expiresPrefix, StringComparison.OrdinalIgnoreCase)) continue;
+                var ident = name.Substring(expiresPrefix.Length);
+                if (!result.ContainsKey(ident))
+                {
+                    result[ident] = new YoutubeScopeInfo(null, kv.Value);
+                }
+            }
+
+            return TypedResults.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    public record YoutubeConnectResponse(string AuthorizeUrl, string State);
+
+    public record YoutubeScopeInfo(string? Scopes, string? ExpiresAt);
+
+    public record YoutubeSetCodeRequest(string Code, string? Scope, string? RedirectUri);
+}

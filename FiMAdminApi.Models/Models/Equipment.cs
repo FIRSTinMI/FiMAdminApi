@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using static FiMAdminApi.Models.Models.AvConfiguration;
 
 namespace FiMAdminApi.Models.Models;
 
@@ -19,7 +20,7 @@ public class Equipment<TConfig> : Equipment where TConfig : IEquipmentConfigurat
     public TConfig? Configuration { get; set; }
 }
 
-public interface IEquipmentConfiguration {}
+public interface IEquipmentConfiguration { }
 
 public class AvConfiguration : IEquipmentConfiguration
 {
@@ -35,4 +36,41 @@ public class AvConfiguration : IEquipmentConfiguration
     }
 }
 
-public class AvCartEquipment : Equipment<AvConfiguration> {}
+public class AvCartEquipment : Equipment<AvConfiguration>
+{
+    public void SetFirstStreamInfo(string rtmpUrl, string streamKey)
+    {
+        if (Configuration == null)
+        {
+            Configuration = new AvConfiguration
+            {
+                StreamInfo = new List<StreamInformation>()
+            };
+        }
+        // verify a streaming config exists
+        if (Configuration.StreamInfo == null)
+        {
+            Configuration.StreamInfo = new List<StreamInformation>();
+        }
+
+        // set the first entry to the new stream info
+        if (Configuration.StreamInfo.Count == 0)
+        {
+            Configuration.StreamInfo.Add(new StreamInformation
+            {
+                Index = 0,
+                CartId = Id,
+                Enabled = true,
+                RtmpUrl = rtmpUrl,
+                RtmpKey = streamKey
+            });
+        }
+        else
+        {
+            var si = Configuration.StreamInfo.First();
+            si.RtmpUrl = rtmpUrl;
+            si.RtmpKey = streamKey;
+            si.Enabled = true;
+        }
+    }
+}
