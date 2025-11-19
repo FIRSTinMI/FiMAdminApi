@@ -53,18 +53,19 @@ public static class YoutubeEndpoints
     }
 
     private static async Task<Results<Ok, ProblemHttpResult>> SetCode(
-        [FromBody] YoutubeSetCodeRequest request,
+        [FromBody] YoutubeSetCodeRequest? request,
         [FromServices] YoutubeService youtubeService,
         [FromServices] VaultService vaultService,
-        [FromServices] ILogger logger)
+        [FromServices] ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger(typeof(YoutubeEndpoints));
         if (request is null || string.IsNullOrWhiteSpace(request.Code))
             return TypedResults.Problem("code is required");
 
         try
         {
             var token = await youtubeService.ExchangeCodeForTokenAsync(request.Code, request.RedirectUri ?? string.Empty);
-            if (token is null || string.IsNullOrWhiteSpace(token.AccessToken))
+            if (string.IsNullOrWhiteSpace(token.AccessToken))
                 return TypedResults.Problem("Failed to exchange code for token");
 
             // Identify account: prefer email, then channelId, then sub

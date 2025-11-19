@@ -34,8 +34,9 @@ public static class TwitchEndpoints
         [FromBody] SetCodeRequest request,
         [FromServices] TwitchService twitchService,
         [FromServices] VaultService vaultService,
-        [FromServices] ILogger logger)
+        [FromServices] ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger(typeof(TwitchEndpoints));
         if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Scope))
         {
             return TypedResults.Problem("code and scope are required");
