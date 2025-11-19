@@ -33,7 +33,6 @@ namespace FiMAdminApi.Services
             string baseDir = AppContext.BaseDirectory ?? string.Empty;
 
             var logoFile = System.IO.Path.Combine(baseDir, "Assets", "fim-logo-blackonwhite.png");
-            System.Console.WriteLine($"Looking for logo file at: {logoFile}");
 
             if (File.Exists(logoFile))
             {
