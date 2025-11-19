@@ -10,9 +10,9 @@ namespace FiMAdminApi.EventSync;
 /// <param name="applicableStatuses">The list of statuses where this step should be run.</param>
 public abstract class EventSyncStep(EventStatus[] applicableStatuses)
 {
-    public bool ShouldRun(EventStatus status)
+    public virtual bool ShouldRun(Event evt)
     {
-        return applicableStatuses.Contains(status);
+        return applicableStatuses.Contains(evt.Status);
     }
 
     public abstract Task RunStep(Event evt, IDataClient eventDataClient);

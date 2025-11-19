@@ -1,10 +1,11 @@
+using FiMAdminApi.Data.EfPgsql;
 using SlackNet;
 using SlackNet.Blocks;
 using SlackNet.WebApi;
 
 namespace FiMAdminApi.Services;
 
-public class SlackService(ISlackApiClient? slackClient, IConfiguration configuration, ILogger<SlackService> logger)
+public class SlackService(ISlackApiClient? slackClient, IConfiguration configuration, ILogger<SlackService> logger, VaultService vaultService)
 {
     public async Task SendMessage(SlackChannel channel, string message, string? buttonText = null, string? buttonUrl = null)
     {
@@ -40,18 +41,28 @@ public class SlackService(ISlackApiClient? slackClient, IConfiguration configura
         });
     }
 
-    public async Task SetEventInformationForUser(string userId, string eventName)
+    public async Task SetEventInformationForUser(string userId, string newName, string? token = null)
     {
         if (slackClient is null)
         {
             logger.LogError("Tried to update Slack profile but Slack wasn't configured");
             return;
         }
-        
-        await slackClient.UserProfile.Set(new UserProfile
+
+        token ??= await vaultService.GetSecret($"slack_token:{userId}");
+
+        if (string.IsNullOrEmpty(token))
         {
-            RealName = eventName,
-            DisplayName = eventName
+            logger.LogWarning("Tried to update name of {UserId} but could not find a token", userId);
+            return;
+        }
+        
+        logger.LogInformation("Setting {userid} to {name}", userId, newName);
+        
+        await slackClient.WithAccessToken(token).UserProfile.Set(new UserProfile
+        {
+            RealName = newName,
+            DisplayName = newName
         }, userId);
     }
 

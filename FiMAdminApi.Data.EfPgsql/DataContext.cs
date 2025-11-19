@@ -59,5 +59,13 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
                 builder.OwnsMany(c => c.StreamInfo);
             });
         });
+        
+        modelBuilder.Entity<TruckRoute>(entity =>
+        {
+            entity.OwnsOne(t => t.StreamingConfig, builder =>
+            {
+                builder.ToJson();
+            });
+        });
     }
 }

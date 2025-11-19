@@ -187,7 +187,7 @@ app
     .RegisterTwitchEndpoints(globalVs)
     .RegisterYoutubeEndpoints(globalVs)
     .RegisterEventStreamEndpoints(globalVs)
-    .RegisterSlackBotEndpoints(globalVs);
-    app.RegisterThumbnailEndpoints(globalVs);
+    .RegisterSlackBotEndpoints(globalVs)
+    .RegisterThumbnailEndpoints(globalVs);
 
 app.Run();
