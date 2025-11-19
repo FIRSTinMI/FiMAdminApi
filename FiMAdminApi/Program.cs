@@ -126,6 +126,11 @@ builder.Services.AddScoped<EventSyncService>();
 builder.Services.AddScoped<EventTeamsService>();
 builder.Services.AddScoped<EventRepository>();
 builder.Services.AddScoped<SlackService>();
+builder.Services.AddScoped<VaultService>();
+builder.Services.AddScoped<TwitchService>();
+builder.Services.AddScoped<YoutubeService>();
+builder.Services.AddScoped<EventStreamService>();
+builder.Services.AddScoped<ThumbnailService>();
 builder.Services.AddClients(builder.Environment.IsProduction());
 builder.Services.AddAvCartService();
 builder.Services.AddEventSyncSteps();
@@ -178,6 +183,11 @@ app
     .RegisterMatchesEndpoints(globalVs)
     .RegisterAvTokenEndpoints(globalVs)
     .RegisterAvCartsEndpoints(globalVs)
-    .RegisterTbaWriteEndpoints(globalVs);
+    .RegisterTbaWriteEndpoints(globalVs)
+    .RegisterTwitchEndpoints(globalVs)
+    .RegisterYoutubeEndpoints(globalVs)
+    .RegisterEventStreamEndpoints(globalVs)
+    .RegisterSlackBotEndpoints(globalVs);
+    app.RegisterThumbnailEndpoints(globalVs);
 
 app.Run();
