@@ -80,91 +80,32 @@ namespace FiMAdminApi.Services
 
             image.Mutate(ctx =>
             {
-                // Simple centered text using an approximate character width estimator
-                float charFactor = 0.55f; // approximate width per font size
+                var richOptions = new RichTextOptions(titleFont)
+                {
+                    WrappingLength = IMAGE_WIDTH * 0.8f, // Use 80% of the canvas width
+                    TabWidth = 4,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center,
+                };
 
-                var progText = (line1 ?? programType ?? string.Empty);
-                var progEstWidth = programFont.Size * progText.Length * charFactor;
-                var progPoint = new PointF(centerXPoint - progEstWidth / 2f, IMAGE_HEIGHT * 0.5f - programFont.Size / 2f);
-                ctx.DrawText(progText, programFont, Color.Black, progPoint);
+                // Draw line 1 (program)
+                richOptions.Origin = new PointF(centerXPoint, IMAGE_HEIGHT * 0.51f - programFont.Size);
+                richOptions.Font = programFont;
+                var progText = line1 ?? programType ?? string.Empty;
+                ctx.DrawText(richOptions, progText, Color.Black);
 
-                // Title: wrap to max width (85% of canvas) and at most 2 lines
+                // Draw line 2 (title)
+                richOptions.Origin = new PointF(centerXPoint, IMAGE_HEIGHT * 0.65f - (titleFont.Size * 0.9f));
+                richOptions.Font = titleFont;
                 var rawTitle = (line2 ?? string.Empty).Replace("--", "—");
-                var maxWidthPx = IMAGE_WIDTH * 0.85f;
-                float charFactorTitle = charFactor; // reuse estimator
-                int maxCharsPerLine = Math.Max(1, (int)(maxWidthPx / (titleFont.Size * charFactorTitle)));
+                ctx.DrawText(richOptions, rawTitle, Color.Black);
 
-                string lineA = string.Empty;
-                string lineB = string.Empty;
-                if (rawTitle.Length <= maxCharsPerLine)
-                {
-                    lineA = rawTitle;
-                }
-                else
-                {
-                    var words = rawTitle.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    var sb = new System.Text.StringBuilder();
-                    int i = 0;
-                    for (; i < words.Length; i++)
-                    {
-                        var next = (sb.Length == 0) ? words[i] : sb + " " + words[i];
-                        if (next.Length > maxCharsPerLine)
-                            break;
-                        if (sb.Length > 0) sb.Append(' ');
-                        sb.Append(words[i]);
-                    }
-                    lineA = sb.ToString();
 
-                    if (i < words.Length)
-                    {
-                        var sb2 = new System.Text.StringBuilder();
-                        for (; i < words.Length; i++)
-                        {
-                            var next = (sb2.Length == 0) ? words[i] : sb2 + " " + words[i];
-                            if (next.Length > maxCharsPerLine)
-                            {
-                                var remaining = string.Join(' ', words.Skip(i));
-                                if (remaining.Length > maxCharsPerLine)
-                                {
-                                    lineB = remaining.Substring(0, Math.Max(0, maxCharsPerLine - 1)) + "…";
-                                }
-                                else
-                                {
-                                    lineB = remaining;
-                                }
-                                break;
-                            }
-                            if (sb2.Length > 0) sb2.Append(' ');
-                            sb2.Append(words[i]);
-                        }
-                        if (string.IsNullOrEmpty(lineB) && sb2.Length > 0) lineB = sb2.ToString();
-                    }
-                }
-
-                if (string.IsNullOrEmpty(lineB))
-                {
-                    var titleEstWidth = titleFont.Size * lineA.Length * charFactorTitle;
-                    var titlePoint = new PointF(centerXPoint - titleEstWidth / 2f, IMAGE_HEIGHT * 0.65f - titleFont.Size / 2f);
-                    ctx.DrawText(lineA, titleFont, Color.Black, titlePoint);
-                }
-                else
-                {
-                    var lineSpacing = titleFont.Size * 1.05f;
-                    var lineAEst = titleFont.Size * lineA.Length * charFactorTitle;
-                    var lineBEst = titleFont.Size * lineB.Length * charFactorTitle;
-                    var lineAX = centerXPoint - lineAEst / 2f;
-                    var lineBX = centerXPoint - lineBEst / 2f;
-                    var centerY = IMAGE_HEIGHT * 0.65f;
-                    var lineAY = centerY - (lineSpacing / 2f);
-                    var lineBY = centerY + (lineSpacing / 2f);
-                    ctx.DrawText(lineA, titleFont, Color.Black, new PointF(lineAX, lineAY));
-                    ctx.DrawText(lineB, titleFont, Color.Black, new PointF(lineBX, lineBY));
-                }
-
+                // Draw line 3 (subtitle)
+                richOptions.Origin = new PointF(centerXPoint, IMAGE_HEIGHT * 0.85f - (subtitleFont.Size * 0.1f));
+                richOptions.Font = subtitleFont;
                 var subtitleText = (line3 ?? string.Empty).Replace("--", "—");
-                var subtitleEstWidth = subtitleFont.Size * subtitleText.Length * charFactor;
-                var subtitlePoint = new PointF(centerXPoint - subtitleEstWidth / 2f, IMAGE_HEIGHT * 0.87f - subtitleFont.Size / 2f);
-                ctx.DrawText(subtitleText, subtitleFont, Color.Black, subtitlePoint);
+                ctx.DrawText(richOptions, subtitleText, Color.Black);
             });
 
             using var ms = new MemoryStream();
