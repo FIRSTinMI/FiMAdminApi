@@ -46,43 +46,6 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
         return url;
     }
 
-    private async Task<bool> UpdateBroadcastContentDetailsViaHttpAsync(string accessToken, string broadcastId, bool enableAutoStart, bool enableAutoStop, bool enableMonitorStream, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-            var url = "https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails";
-            var payload = new
-            {
-                id = broadcastId,
-                contentDetails = new
-                {
-                    enableAutoStart = enableAutoStart,
-                    enableAutoStop = enableAutoStop,
-                    enableMonitorStream = enableMonitorStream
-                }
-            };
-
-            var json = JsonSerializer.Serialize(payload);
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var resp = await http.PutAsync(url, content, cancellationToken);
-            if (!resp.IsSuccessStatusCode)
-            {
-                var body = await resp.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogWarning("Failed HTTP update of contentDetails for broadcast {BroadcastId}: {Status} {Body}", broadcastId, (int)resp.StatusCode, body);
-                return false;
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed HTTP update of contentDetails for broadcast {BroadcastId}", broadcastId);
-            return false;
-        }
-    }
 
     /// <summary>
     /// Return a valid access token for the given account identifier (email). Uses the stored access token if not expired,
@@ -644,7 +607,7 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
                     var progress = await thumbReq.UploadAsync(cancellationToken);
                     if (progress.Status != UploadStatus.Completed)
                     {
-                        logger.LogWarning("Thumbnail upload did not complete successfully for broadcast {BroadcastId}. Status: {Status}", progress.Status, broadcastId);
+                        logger.LogWarning("Thumbnail upload did not complete successfully for broadcast {BroadcastId}. Status: {Status}", broadcastId, progress.Status);
                     }
                 }
                 catch (Exception ex)
