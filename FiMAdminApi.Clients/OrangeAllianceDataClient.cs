@@ -120,6 +120,45 @@ public class OrangeAllianceDataClient : RestClient
         return true;
     }
 
+    public async Task<bool> DeleteEventStream(string liveStreamKey)
+    {
+        if (string.IsNullOrWhiteSpace(liveStreamKey)) throw new ArgumentNullException(nameof(liveStreamKey));
+
+        // endpoint path: use a sensible create path for event streams
+        var request = BuildDelete($"/streams/{liveStreamKey}");
+        var response = await PerformRequest(request);
+        var content = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            Logger.LogError("Error deleting event stream {LiveStreamKey}. HTTP {StatusCode}. Response body: {Body}", liveStreamKey, (int)response.StatusCode, content);
+            return false;
+        }
+        return true;
+    }
+
+    public async Task<TOAStream[]> GetEventStreams(string eventKey)
+    {
+        if (string.IsNullOrWhiteSpace(eventKey)) throw new ArgumentNullException(nameof(eventKey));
+
+        var request = BuildGetRequest($"event/{eventKey}/streams");
+        var response = await PerformRequest(request);
+        var content = await response.Content.ReadAsStringAsync();
+        try
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Error getting event streams for event {EventKey}. HTTP {StatusCode}. Response body: {Body}", eventKey, (int)response.StatusCode, content);
+            return Array.Empty<TOAStream>();
+        }
+
+        var jsonTypeInfo = OrangeAllianceJsonSerializer.Default.GetTypeInfo(typeof(TOAStream[]));
+        if (jsonTypeInfo is null)
+            throw new ApplicationException("Unsupported type to deserialize OrangeAlliance TOAStream[]");
+        return JsonSerializer.Deserialize<TOAStream[]>(content, (JsonTypeInfo<TOAStream[]>)jsonTypeInfo)!;
+    }
+
     /// <summary>
     /// Creates a request which encodes all user-provided values
     /// </summary>
@@ -160,10 +199,32 @@ public class OrangeAllianceDataClient : RestClient
 
         return request;
     }
+
+    private HttpRequestMessage BuildDelete(FormattableString endpoint)
+    {
+        var relativeUri = endpoint.EncodeString(Uri.EscapeDataString);
+
+        var request = new HttpRequestMessage();
+        request.Method = HttpMethod.Delete;
+        request.RequestUri = new Uri(_baseUrl, relativeUri);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
+        request.Headers.Add("X-TOA-Key", _apiKey);
+        request.Headers.Add("x-application-origin", "FiMAdminApi");
+
+        return request;
+    }
+}
+
+public class TOAStream
+{
+    public string stream_key { get; set; } = string.Empty;
+    public string event_key { get; set; } = string.Empty;
+    public string url { get; set; } = string.Empty;
 }
 
 
 [JsonSerializable(typeof(EventLiveStream[]))]
+[JsonSerializable(typeof(TOAStream[]))]
 internal partial class OrangeAllianceJsonSerializer : JsonSerializerContext
 {
 }

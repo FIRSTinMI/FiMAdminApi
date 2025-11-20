@@ -80,7 +80,8 @@ builder.Services.AddDbContext<DataContext>(opt =>
     opt.UseNpgsql(connectionString,
         o => o
             .MapEnum<TournamentLevel>("tournament_level", nameTranslator: nullNameTranslator)
-            .MapEnum<MatchWinner>("match_winner", nameTranslator: nullNameTranslator));
+            .MapEnum<MatchWinner>("match_winner", nameTranslator: nullNameTranslator)
+            .MapEnum<StreamPlatform>("stream_platform", nameTranslator: nullNameTranslator));
 });
 
 if (!string.IsNullOrEmpty(builder.Configuration["Slack:Token"]))

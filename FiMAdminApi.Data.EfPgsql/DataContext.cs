@@ -23,11 +23,13 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<Equipment> Equipment { get; init; }
     public DbSet<AvCartEquipment> AvCarts { get; set; }
     public DbSet<EquipmentType> EquipmentTypes { get; init; }
+    public DbSet<EventStream> EventStreams { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties(typeof(TournamentLevel)).HaveConversion<TournamentLevel>();
         configurationBuilder.Properties(typeof(MatchWinner)).HaveConversion<MatchWinner>();
+        configurationBuilder.Properties(typeof(StreamPlatform)).HaveConversion<StreamPlatform>();
         configurationBuilder.Properties(typeof(Enum)).HaveConversion<string>();
         configurationBuilder.Properties(typeof(IEnumerable<Enum>)).HaveConversion<IEnumerable<string>>();
     }
