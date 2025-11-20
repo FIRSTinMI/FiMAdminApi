@@ -32,11 +32,6 @@ public static class EventStreamEndpoints
         [FromServices] EventStreamService streamService,
         [FromServices] DataContext dbContext)
     {
-        if (dbContext.EventStreams == null)
-        {
-            return TypedResults.Problem("EventStreams DbSet unavailable");
-        }
-
         var exists = await dbContext.EventStreams.AnyAsync(s => s.Id == id);
         if (!exists) return TypedResults.NotFound();
 

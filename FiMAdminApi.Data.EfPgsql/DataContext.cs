@@ -36,30 +36,6 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Register Postgres enum mapping so Npgsql sends the correct enum type instead of text
-        modelBuilder.HasPostgresEnum<StreamPlatform>("stream_platform");
-        modelBuilder.Entity<EventStream>(entity =>
-        {
-            entity.ToTable("event_streams");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-
-            entity.Property(e => e.EventId).HasColumnName("event_id").IsRequired();
-
-            entity.Property(e => e.Title).HasColumnName("title").HasMaxLength(255);
-
-            entity.Property(e => e.Platform)
-                .HasColumnName("platform")
-                .HasColumnType("stream_platform")
-                .IsRequired();
-
-            entity.Property(e => e.Channel).HasColumnName("channel").HasMaxLength(255).IsRequired();
-
-            entity.Property(e => e.Url).HasColumnName("url").HasMaxLength(512);
-
-            entity.Property(e => e.StartTime).HasColumnName("start_time");
-        });
-
         modelBuilder
             .Entity<EventStaff>()
             .Property(e => e.Permissions)
