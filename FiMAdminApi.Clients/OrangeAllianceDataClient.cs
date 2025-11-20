@@ -128,14 +128,9 @@ public class OrangeAllianceDataClient : RestClient
         var request = BuildDelete($"/streams/{liveStreamKey}");
         var response = await PerformRequest(request);
         var content = await response.Content.ReadAsStringAsync();
-        Logger.LogInformation("DeleteEventStream response: {Status} {Body}", (int)response.StatusCode, content);
-        try
+        if (!response.IsSuccessStatusCode)
         {
-            response.EnsureSuccessStatusCode();
-        }
-        catch (HttpRequestException ex)
-        {
-            Logger.LogError(ex, "Error deleting event stream {LiveStreamKey}. HTTP {StatusCode}. Response body: {Body}", liveStreamKey, (int)response.StatusCode, content);
+            Logger.LogError("Error deleting event stream {LiveStreamKey}. HTTP {StatusCode}. Response body: {Body}", liveStreamKey, (int)response.StatusCode, content);
             return false;
         }
         return true;
