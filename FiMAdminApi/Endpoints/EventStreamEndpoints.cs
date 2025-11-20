@@ -21,7 +21,29 @@ public static class EventStreamEndpoints
         group.MapPost("", CreateEventStreams)
             .WithDescription("Create or update event streams for a set of events");
 
+        group.MapDelete("/{id:long}", DeleteEventStream)
+            .WithDescription("Delete a created event stream (Twitch rename or YouTube deletion)");
+
         return app;
+    }
+
+    private static async Task<Results<Ok, NotFound, ProblemHttpResult>> DeleteEventStream(
+        [FromRoute] long id,
+        [FromServices] EventStreamService streamService,
+        [FromServices] DataContext dbContext)
+    {
+        if (dbContext.EventStreams == null)
+        {
+            return TypedResults.Problem("EventStreams DbSet unavailable");
+        }
+
+        var exists = await dbContext.EventStreams.AnyAsync(s => s.Id == id);
+        if (!exists) return TypedResults.NotFound();
+
+        var success = await streamService.DeleteLiveEventAsync(id);
+        if (success) return TypedResults.Ok();
+
+        return TypedResults.Problem("Failed to delete live event. See server logs for details.");
     }
 
     private static async Task<Results<Ok, NotFound, ForbidHttpResult, ValidationProblem>> CreateEventStreams(

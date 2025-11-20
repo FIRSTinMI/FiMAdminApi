@@ -45,29 +45,32 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
             // create the stream based on provider
             var streamKey = string.Empty;
             var rtmpUrl = string.Empty;
-            var embedUrl = string.Empty;
-            var channelUrl = string.Empty;
+            var streams = new List<StreamInfo>();
             var provider = truckRouteData.StreamingConfig.Channel_Type;
 
 
             var description = "";
             var descriptionShort = "";
             var prefix = "";
+            var program = "";
             switch (evt.SyncSource)
             {
                 case Models.Enums.DataSources.FtcEvents:
-                    prefix = "MI FTC";
+                    prefix = $"{evt.StartTime:yyyy} MI FTC";
                     description = $"https://ftc.events/{evt.Code}";
+                    program = "FTC";
                     descriptionShort = $" ftc.events/{evt.Code}";
                     break;
                 case Models.Enums.DataSources.FrcEvents:
-                    prefix = "MI FRC";
+                    prefix = $"{evt.StartTime:yyyy} MI FRC";
                     description = $"https://frc.events/{evt.Code}";
+                    program = "FRC";
                     descriptionShort = $" frc.events/{evt.Code}";
                     break;
                 case Models.Enums.DataSources.BlueAlliance:
-                    prefix = "MI FRC";
+                    prefix = $"{evt.StartTime:yyyy} MI FRC";
                     description = $"https://www.thebluealliance.com/event/{evt.Code}";
+                    program = "FRC";
                     break;
                 default:
                     prefix = "";
@@ -104,8 +107,15 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                             logger.LogWarning("IConfiguration service unavailable; falling back to default RTMP URL for channel {ChannelId}", truckRouteData.StreamingConfig.Channel_Id);
                             rtmpUrl = "rtmp://use20.contribute.live-video.net/app/";
                         }
-                        embedUrl = $"https://player.twitch.tv/?channel={truckRouteData.StreamingConfig.Channel_Id}";
-                        channelUrl = $"https://www.twitch.tv/{truckRouteData.StreamingConfig.Channel_Id}";
+                        streams.Add(new StreamInfo
+                        {
+                            embedUrl = $"https://player.twitch.tv/?channel={truckRouteData.StreamingConfig.Channel_Id}",
+                            channelUrl = $"https://www.twitch.tv/{truckRouteData.StreamingConfig.Channel_Id}",
+                            streamName = $"{prefix} {evt.Name}",
+                            startTime = evt.StartTime,
+                            endTime = evt.EndTime,
+                            internalId = truckRouteData.StreamingConfig.Channel_Id
+                        });
                     }
                 }
             }
@@ -113,39 +123,108 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
             {
                 logger.LogInformation("Creating YouTube event stream for event {EventId}", evt.Id);
                 var youtubeService = services.GetService<YoutubeService>();
-                if (youtubeService != null)
+                var thumbnailService = services.GetService<ThumbnailService>();
+
+                // Get all livestreams that exist for the current event
+                var existingStreams = dataContext.EventStreams?
+                    .Where(es => es.EventId == evt.Id && es.Platform == Models.Enums.StreamPlatform.Youtube)
+                    .ToList();
+                if (youtubeService != null && thumbnailService != null)
                 {
+                    logger.LogInformation("YouTubeService and ThumbnailService available; proceeding to create YouTube stream for event {EventId}", evt.Id);
                     try
                     {
+                        // Count number of days that the event is going on
+                        var eventDuration = Math.Ceiling((evt.EndTime - evt.StartTime).TotalDays) - 2; // -1 day for "buffer" day, -1 because math is hard.
                         var acctId = truckRouteData.StreamingConfig.Channel_Id!;
-                        var youtubeSuccess = await youtubeService.UpdateLiveStreamNowAsync(acctId, $"{prefix} {evt.Name}", description);
-                        if (!youtubeSuccess)
-                        {
-                            logger.LogWarning("Could not update YouTube live stream title for channel {ChannelId} when creating stream for event {EventId}", truckRouteData.StreamingConfig.Channel_Id, evt.Id);
-                        }
-                        var ingestion = await youtubeService.GetDefaultStreamIngestionInfo(acctId);
-                        if (ingestion != null)
-                        {
-                            // Use the ingestion address as the RTMP URL and the stream name as the key
-                            rtmpUrl = ingestion.RtmpIngestionAddress;
-                            streamKey = ingestion.StreamName;
 
-                            if (!string.IsNullOrWhiteSpace(ingestion.ChannelId))
+                        logger.LogInformation("YouTube account ID for event {EventId} is {AcctId}", evt.Id, acctId);
+                        logger.LogInformation("Event {EventId} duration is {EventDuration} days", evt.Id, eventDuration);
+
+                        // List of streams to be created
+                        var youtubeStreams = new List<YoutubeIngestionInfo>();
+                        
+                        // Create the streams
+                        for (int day = 0; day <= eventDuration; day++)
+                        {
+                            var dayName = eventDuration > 0 ? (day == 0 ? "Practice Day" : $"Day {day}") : "";
+                            var daySuffix = !string.IsNullOrEmpty(dayName) ? $" - {dayName}" : "";
+                            var streamDate = evt.StartTime.AddDays(day + 1);
+                            var streamTitle = $"{prefix} {evt.Name}{daySuffix}";
+                            var streamDesc = description;
+                            var thumbnail = await thumbnailService.DrawThumbnailAsync(program, $"{evt.StartTime:yyyy} {program}", $"{evt.Name}", dayName);
+
+                            // Determine if a stream already exists and we should update, or create new.
+                            // 1. Stream exists if eventDuration is 0 and there is 1 existing stream
+                            var exists1 = existingStreams != null &&
+                                          eventDuration == 0 &&
+                                          existingStreams.Count == 1;
+                            // 2. Look for stream with identical suffixes or start dates
+                            var exists2 = existingStreams != null &&
+                                          existingStreams.Any(es =>
+                                              (es.Title != null && es.Title.EndsWith(daySuffix, StringComparison.OrdinalIgnoreCase))
+                                              || es.StartTime == streamDate);
+
+                            YoutubeIngestionInfo? youtubeStream = null;
+                            if (exists1 || exists2)
                             {
-                                // Embed the live stream by channel and set channel URL
-                                embedUrl = $"https://www.youtube.com/embed/live_stream?channel={ingestion.ChannelId}";
-                                channelUrl = $"https://www.youtube.com/channel/{ingestion.ChannelId}";
+                                logger.LogInformation("Existing YouTube stream found for event {EventId} on day {Day}; updating stream", evt.Id, day);
+
+                                // Choose DB record to update
+                                EventStream? existingToUpdate = null;
+                                if (exists1 && existingStreams != null && existingStreams.Count == 1)
+                                {
+                                    existingToUpdate = existingStreams.First();
+                                }
+                                else if (exists2 && existingStreams != null)
+                                {
+                                    existingToUpdate = existingStreams.FirstOrDefault(es => (es.Title != null && es.Title.EndsWith(daySuffix, StringComparison.OrdinalIgnoreCase)) || es.StartTime == streamDate);
+                                }
+
+                                if (existingToUpdate != null && !string.IsNullOrWhiteSpace(existingToUpdate.InternalId))
+                                {
+                                    youtubeStream = await youtubeService.UpdateExistingLiveStreamAsync(acctId, existingToUpdate.InternalId, streamTitle, streamDesc, streamDate, thumbnail);
+                                }
+                                else
+                                {
+                                    logger.LogInformation("Could not resolve broadcast id for existing stream; creating new stream instead for event {EventId} day {Day}", evt.Id, day);
+                                    youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle, streamDesc, streamDate, thumbnail);
+                                }
+                            }
+                            else
+                            {
+                                logger.LogInformation("No existing YouTube stream found for event {EventId} on day {Day}; creating new stream", evt.Id, day);
+                                youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle, streamDesc, streamDate, thumbnail);
+                            }
+
+                            if (youtubeStream != null)
+                            {
+                                youtubeStreams.Add(youtubeStream);
+                                streams.Add(new StreamInfo
+                                {
+                                    embedUrl = $"https://www.youtube.com/embed/live_stream?channel={youtubeStream.ChannelId}",
+                                    channelUrl = $"https://www.youtube.com/channel/{youtubeStream.ChannelId}",
+                                    streamName = streamTitle,
+                                    startTime = streamDate,
+                                    endTime = streamDate.AddHours(24),
+                                    internalId = youtubeStream.BroadcastId
+                                });
                             }
                         }
-                        else
+                        var firstStream = youtubeStreams.FirstOrDefault();
+                        if (firstStream != null)
                         {
-                            logger.LogWarning("Could not retrieve YouTube ingestion info for channel {ChannelId} when creating stream for event {EventId}", truckRouteData.StreamingConfig.Channel_Id, evt.Id);
+                            // Use the ingestion address as the RTMP URL and the stream name as the key
+                            rtmpUrl = firstStream.RtmpIngestionAddress;
+                            streamKey = firstStream.StreamName;
                         }
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Error while creating YouTube stream for event {EventId}", evt.Id);
+                        logger.LogError(ex, "Error while creating YouTube stream(s) for event {EventId}", evt.Id);
                     }
+                } else {
+                    logger.LogError($"YouTubeService: {youtubeService == null} ThumbnailService: {thumbnailService == null}; cannot create YouTube stream for event {evt.Id}");
                 }
             }
 
@@ -161,7 +240,7 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                 }
             }
 
-            if (!string.IsNullOrEmpty(embedUrl) && !string.IsNullOrEmpty(evt.Code) && evt.SyncSource == Models.Enums.DataSources.FtcEvents)
+            if (streams.Any() && !string.IsNullOrEmpty(evt.Code) && evt.SyncSource == Models.Enums.DataSources.FtcEvents)
             {
                 var oaClient = services.GetService<OrangeAllianceDataClient>();
                 if (oaClient != null)
@@ -179,18 +258,245 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                         logger.LogWarning("Stream provider is null for event {EventId} with FTCEvents key {FTCEventsKey}", evt.Id, evt.Code);
                         continue;
                     }
-                    await oaClient.UpdateEventStream(
-                        toaEventKey,
-                        truckRouteData.Name,
-                        evt.Name,
-                        provider,
-                        embedUrl,
-                        channelUrl,
-                        evt.StartTime,
-                        evt.EndTime
-                    );
+                    for (int i = 0; i < streams.Count; i++)
+                    {
+                        var streamSuffix = $"LS{i + 1}";
+                        var updateSuccess = await oaClient.UpdateEventStream(
+                            toaEventKey,
+                            streams[i].streamName,
+                            streams[i].streamName,
+                            provider,
+                            streams[i].embedUrl,
+                            streams[i].channelUrl,
+                            streams[i].startTime,
+                            streams[i].endTime,
+                            streamSuffix);
+                        if (updateSuccess)
+                        {
+                            logger.LogInformation("Successfully updated event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
+                        }
+                        else
+                        {
+                            logger.LogError("Failed to update event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
+                        }
+                    }
+                }
+            }
+        
+            if (streams.Any())
+            {
+                try
+                {
+                    if (dataContext.EventStreams == null)
+                    {
+                        logger.LogWarning("DataContext does not expose EventStreams DbSet; skipping DB insert for event {EventId}", evt.Id);
+                    }
+                    else
+                    {
+                        foreach (var s in streams)
+                        {
+                            var dbStream = new EventStream
+                            {
+                                // Best-effort mapping; adjust property names if your EF model differs
+                                EventId = evt.Id,
+                                Channel = s.channelUrl,
+                                InternalId = s.internalId,
+                                Platform = provider == "twitch" ? Models.Enums.StreamPlatform.Twitch : Models.Enums.StreamPlatform.Youtube,
+                                Title = s.streamName,
+                                Url = s.embedUrl,
+                                StartTime = s.startTime
+                            };
+
+                            dataContext.EventStreams.Add(dbStream);
+                        }
+
+                        await dataContext.SaveChangesAsync();
+                        logger.LogInformation("Inserted {Count} EventStream record(s) for event {EventId}", streams.Count, evt.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to insert EventStream records for event {EventId}", evt.Id);
                 }
             }
         }
     }
+
+    /// <summary>
+    /// Delete (or logically delete) a live event for the given EventStream id.
+    /// For Twitch: rename the stream to "{channel_id}'s Live Stream" since Twitch broadcasts cannot be deleted.
+    /// For YouTube: call into <see cref="YoutubeService.DeleteLiveBroadcastAsync"/> using the account email found on the truck route streaming config.
+    /// If the provider action succeeds the EventStream record is removed from the database.
+    /// </summary>
+    public async Task<bool> DeleteLiveEventAsync(long eventStreamId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Event? evt = null;
+            if (dataContext.EventStreams == null)
+            {
+                logger.LogWarning("DataContext does not expose EventStreams DbSet; cannot delete stream {StreamId}", eventStreamId);
+                return false;
+            }
+
+            var stream = dataContext.EventStreams.FirstOrDefault(s => s.Id == eventStreamId);
+            if (stream == null)
+            {
+                logger.LogWarning("EventStream {StreamId} not found; nothing to delete", eventStreamId);
+                return false;
+            }
+
+            switch (stream.Platform)
+            {
+                case Models.Enums.StreamPlatform.Twitch:
+                {
+                    var twitchService = services.GetService<TwitchService>();
+                    if (twitchService == null)
+                    {
+                        logger.LogError("TwitchService unavailable; cannot rename Twitch stream for EventStream {StreamId}", eventStreamId);
+                        return false;
+                    }
+
+                    var channelId = stream.InternalId;
+                    if (string.IsNullOrWhiteSpace(channelId))
+                    {
+                        logger.LogError("No channel id available for Twitch EventStream {StreamId}", eventStreamId);
+                        return false;
+                    }
+
+                    var renameTitle = $"{channelId}'s Live Stream";
+                    var renameSuccess = await twitchService.UpdateLivestreamInformation(channelId, renameTitle);
+                    if (!renameSuccess)
+                    {
+                        logger.LogError("Failed to rename Twitch channel {ChannelId} for EventStream {StreamId}", channelId, eventStreamId);
+                        return false;
+                    }
+
+                    // remove DB record
+                    dataContext.EventStreams.Remove(stream);
+                    await dataContext.SaveChangesAsync(cancellationToken);
+                    logger.LogInformation("Removed EventStream {StreamId} after Twitch rename", eventStreamId);
+                    break;
+                }
+                case Models.Enums.StreamPlatform.Youtube:
+                {
+                    var youtubeService = services.GetService<YoutubeService>();
+                    if (youtubeService == null)
+                    {
+                        logger.LogError("YoutubeService unavailable; cannot delete YouTube broadcast for EventStream {StreamId}", eventStreamId);
+                        return false;
+                    }
+
+                    // Find the event -> truck route -> streaming config to get account email
+                    evt = dataContext.Events?.FirstOrDefault(e => e.Id == stream.EventId);
+                    if (evt == null || evt.TruckRouteId == null)
+                    {
+                        logger.LogError("Could not resolve Event or TruckRoute for EventStream {StreamId}; cannot delete YouTube broadcast", eventStreamId);
+                        return false;
+                    }
+
+                    var truckRoute = dataContext.TruckRoutes.FirstOrDefault(t => t.Id == evt.TruckRouteId.Value);
+                    var acctEmail = truckRoute?.StreamingConfig?.Channel_Id;
+                    if (string.IsNullOrWhiteSpace(acctEmail))
+                    {
+                        logger.LogError("No YouTube account id/email found on TruckRoute for EventStream {StreamId}; cannot delete broadcast", eventStreamId);
+                        return false;
+                    }
+
+                    var broadcastId = stream.InternalId;
+                    if (string.IsNullOrWhiteSpace(broadcastId))
+                    {
+                        logger.LogError("No broadcast id (InternalId) on EventStream {StreamId}; cannot delete YouTube broadcast", eventStreamId);
+                        return false;
+                    }
+
+                    var deleted = await youtubeService.DeleteLiveBroadcastAsync(acctEmail, broadcastId, cancellationToken);
+                    if (!deleted)
+                    {
+                        logger.LogError("YouTube DeleteLiveBroadcastAsync failed for broadcast {BroadcastId} (EventStream {StreamId})", broadcastId, eventStreamId);
+                        return false;
+                    }
+
+                    dataContext.EventStreams.Remove(stream);
+                    await dataContext.SaveChangesAsync(cancellationToken);
+                    logger.LogInformation("Removed EventStream {StreamId} after YouTube broadcast deletion", eventStreamId);
+                    break;
+                }
+            }
+
+            // Attempt to delete the stream from TOA if applicable
+            if (evt == null)
+            {
+                evt = dataContext.Events?.FirstOrDefault(e => e.Id == stream.EventId);
+            }
+
+            if (evt != null && !string.IsNullOrEmpty(evt.Code) && evt.SyncSource == Models.Enums.DataSources.FtcEvents)
+            {
+                var oaClient = services.GetService<OrangeAllianceDataClient>();
+                if (oaClient != null)
+                {
+                    try
+                    {
+                        // Attempt to find the TOA event key
+                        var toaEventKey = await oaClient.GetEventKeyFromFTCEventsKey(evt.Code);
+                        if (!string.IsNullOrEmpty(toaEventKey))
+                        {
+                            var streams = await oaClient.GetEventStreams(toaEventKey);
+                            if (streams != null)
+                            {
+                                // iterate over streams
+                                foreach (var toaStream in streams)
+                                {
+                                    var ts = toaStream;
+                                    if (ts == null) continue;
+                                    try
+                                    {
+                                        if (ts.url == stream.Url)
+                                        {
+                                            if (!string.IsNullOrWhiteSpace(ts.stream_key))
+                                            {
+                                                await oaClient.DeleteEventStream(ts.stream_key);
+                                                logger.LogInformation("Deleted TOA event stream {StreamKey} for EventStream {StreamId}", ts.stream_key, eventStreamId);
+                                            }
+                                            else
+                                            {
+                                                logger.LogWarning("TOA stream matched by URL but has no stream_key; cannot delete (EventStream {StreamId})", eventStreamId);
+                                            }
+                                        }
+                                    }
+                                    catch (Exception innerEx)
+                                    {
+                                        logger.LogWarning(innerEx, "Failed to delete TOA event stream {StreamKey} for EventStream {StreamId}", ts.stream_key, eventStreamId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Do not fail entire operation for TOA client errors; log and continue
+                        logger.LogWarning(ex, "Failed to synchronize deletion with OrangeAlliance for event {EventCode}; continuing", evt.Code);
+                    }
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting live event for EventStream {StreamId}", eventStreamId);
+            return false;
+        }
+    }
+
+}
+
+public class StreamInfo
+{
+    public required string embedUrl { get; set; }
+    public required string channelUrl { get; set; }
+    public required string streamName { get; set; }
+    public required DateTime startTime { get; set; }
+    public required DateTime endTime { get; set; }
+    public required string? internalId { get; set; }
 }
