@@ -4,10 +4,6 @@ using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Oauth2.v2;
 using Google.Apis.Services;
 using Google.Apis.Upload;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 
 namespace FiMAdminApi.Services;
 

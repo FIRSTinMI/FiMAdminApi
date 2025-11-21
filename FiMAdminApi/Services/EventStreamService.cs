@@ -116,6 +116,7 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                             startTime = evt.StartTime,
                             endTime = evt.EndTime,
                             internalId = truckRouteData.StreamingConfig.Channel_Id,
+                            isUpdate = false
                         });
                     }
                 }
@@ -176,26 +177,27 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                                 logger.LogInformation("Existing YouTube stream found for event {EventId} on day {Day}; updating stream", evt.Id, day);
 
                                 // Choose DB record to update
-                                EventStream? existingToUpdate = null;
-                                if (exists1 && existingStreams != null && existingStreams.Count == 1)
-                                {
-                                    existingToUpdate = existingStreams.First();
-                                }
-                                else if (exists2 && existingStreams != null)
-                                {
-                                    existingToUpdate = exactExisting.First();
-                                }
+                                EventStream? existingToUpdate = exactExisting.FirstOrDefault();
 
                                 if (existingToUpdate != null && !string.IsNullOrWhiteSpace(existingToUpdate.InternalId))
                                 {
                                     youtubeStream = await youtubeService.UpdateExistingLiveStreamAsync(acctId, existingToUpdate.InternalId, streamTitle, streamDesc, streamDate, thumbnail);
 
-                                    
-
                                     // Update the db
                                     if (youtubeStream != null && existingToUpdate != null && dataContext.EventStreams != null)
                                     {
-                                        await dataContext.EventStreams.Where(es => es.Id == existingToUpdate.Id).ExecuteUpdateAsync(s => s.SetProperty(e => e.Title, streamTitle).SetProperty(e => e.StartTime, streamDate));
+                                        try
+                                        {
+                                            await dataContext.EventStreams.Where(es => es.Id == existingToUpdate.Id).ExecuteUpdateAsync(s => 
+                                                s.SetProperty(e => e.Title, streamTitle)
+                                                    .SetProperty(e => e.StartTime, streamDate)
+                                                    .SetProperty(e => e.Url, $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}")
+                                            );
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            logger.LogError(ex, "Failed to update EventStream record {EventStreamId} for event {EventId}", existingToUpdate.Id, evt.Id);
+                                        }
                                     }
                                 }
                                 else
@@ -215,12 +217,13 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                                 youtubeStreams.Add(youtubeStream);
                                 streams.Add(new StreamInfo
                                 {
-                                    embedUrl = $"https://www.youtube.com/embed/live_stream?channel={youtubeStream.ChannelId}",
+                                    embedUrl = $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}",
                                     channelUrl = $"https://www.youtube.com/channel/{youtubeStream.ChannelId}",
                                     streamName = streamTitle,
                                     startTime = streamDate,
                                     endTime = streamDate.AddHours(24),
                                     internalId = youtubeStream.BroadcastId,
+                                    isUpdate = exists1 || exists2
                                 });
                             }
                         }
@@ -276,12 +279,15 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                     for (int i = 0; i < streams.Count; i++)
                     {
                         var streamSuffix = $"LS{i + 1}";
+                        var url = provider == "twitch"
+                            ? $"https://player.twitch.tv/?channel={truckRouteData.StreamingConfig.Channel_Id}"
+                            : $"https://youtube.com/embed/{streams[i].internalId}";
                         var updateSuccess = await oaClient.UpdateEventStream(
                             toaEventKey,
                             streams[i].streamName,
                             streams[i].streamName,
                             provider,
-                            streams[i].embedUrl,
+                            url,
                             streams[i].channelUrl,
                             streams[i].startTime,
                             streams[i].endTime,
@@ -305,9 +311,13 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
 
                     streams.ForEach(s =>
                         {
+                            // Don't push database record if this is an update
+                            if (s.isUpdate)
+                            {
+                                return;
+                            }
                             var dbStream = new EventStream
                             {
-                                // Best-effort mapping; adjust property names if your EF model differs
                                 EventId = evt.Id,
                                 Channel = s.channelUrl,
                                 InternalId = s.internalId,
@@ -455,7 +465,7 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                                     if (toaStream == null) continue;
                                     try
                                     {
-                                        if (toaStream.url == stream.Url)
+                                        if (toaStream.stream_name == stream.Title)
                                         {
                                             if (!string.IsNullOrWhiteSpace(toaStream.stream_key))
                                             {
@@ -503,4 +513,5 @@ public class StreamInfo
     public required DateTime startTime { get; set; }
     public required DateTime endTime { get; set; }
     public required string? internalId { get; set; }
+    public required bool isUpdate { get; set; }
 }

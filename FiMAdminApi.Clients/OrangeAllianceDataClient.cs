@@ -220,6 +220,7 @@ public class TOAStream
     public string stream_key { get; set; } = string.Empty;
     public string event_key { get; set; } = string.Empty;
     public string url { get; set; } = string.Empty;
+    public string stream_name { get; set; } = string.Empty;
 }
 
 
