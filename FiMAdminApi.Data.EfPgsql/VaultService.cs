@@ -38,7 +38,7 @@ public class VaultService(DataContext dbContext)
     {
         var secret = await dbContext.Database
             .SqlQuery<Secret>($"select id, name, decrypted_secret from vault.decrypted_secrets where name = {name}")
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         return secret;
     }

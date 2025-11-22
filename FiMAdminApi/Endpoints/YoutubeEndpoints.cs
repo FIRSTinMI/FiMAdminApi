@@ -31,6 +31,8 @@ public static class YoutubeEndpoints
             .WithSummary("Stop/complete a broadcast")
             .WithDescription("Transition a broadcast to 'complete' for the given account email and broadcast id.");
 
+        routeGroup.MapPut("/broadcasts/{broadcastId}/auto-stop", SetBroadcastAutoStop);
+
         routeGroup.MapGet("/broadcasts/status", GetBroadcastStatus)
             .WithSummary("Get current broadcast status")
             .WithDescription("Returns the current broadcast lifecycle/status for the account (live, ready, complete, none).");
@@ -124,7 +126,29 @@ public static class YoutubeEndpoints
 
         try
         {
-            var ok = await youtubeService.StopBroadcastAsync(acctEmail!, broadcastId);
+            var ok = await youtubeService.StopBroadcastAsync(acctEmail, broadcastId);
+            if (!ok) return TypedResults.Problem("Failed to stop broadcast");
+            return TypedResults.Ok();
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+    
+    private static async Task<Results<Ok, ProblemHttpResult>> SetBroadcastAutoStop(
+        [FromRoute] string broadcastId,
+        [FromQuery] string? acctEmail,
+        [FromBody] bool autoStop,
+        [FromServices] YoutubeService youtubeService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(broadcastId)) return TypedResults.Problem("broadcastId is required");
+        if (string.IsNullOrWhiteSpace(acctEmail)) return TypedResults.Problem("acctEmail (account identifier/email) is required as query parameter");
+
+        try
+        {
+            var ok = await youtubeService.SetAutoStopAsync(autoStop, acctEmail, broadcastId, cancellationToken);
             if (!ok) return TypedResults.Problem("Failed to stop broadcast");
             return TypedResults.Ok();
         }
@@ -134,7 +158,7 @@ public static class YoutubeEndpoints
         }
     }
 
-    private static async Task<Results<Ok<IEnumerable<FiMAdminApi.Services.YoutubeBroadcastStatus>>, ProblemHttpResult>> GetBroadcastStatus(
+    private static async Task<Results<Ok<IEnumerable<YoutubeBroadcastStatus>>, ProblemHttpResult>> GetBroadcastStatus(
         [FromQuery] string? acctEmail,
         [FromServices] YoutubeService youtubeService)
     {
@@ -142,9 +166,9 @@ public static class YoutubeEndpoints
 
         try
         {
-            var statuses = await youtubeService.GetCurrentBroadcastsStatusAsync(acctEmail!);
+            var statuses = await youtubeService.GetCurrentBroadcastsStatusAsync(acctEmail);
             if (statuses is null) return TypedResults.Problem("Could not retrieve broadcast status or no access token available");
-            return TypedResults.Ok<IEnumerable<FiMAdminApi.Services.YoutubeBroadcastStatus>>(statuses);
+            return TypedResults.Ok<IEnumerable<YoutubeBroadcastStatus>>(statuses);
         }
         catch (Exception ex)
         {
@@ -157,8 +181,8 @@ public static class YoutubeEndpoints
     {
         try
         {
-            var scopePrefix = "google:scope:";
-            var expiresPrefix = "google:expires_at:";
+            const string scopePrefix = "google:scope:";
+            const string expiresPrefix = "google:expires_at:";
 
             var scopes = await vaultService.GetSecretsByPrefix(scopePrefix);
             var expires = await vaultService.GetSecretsByPrefix(expiresPrefix);
@@ -169,7 +193,7 @@ public static class YoutubeEndpoints
             {
                 var name = kv.Key;
                 if (!name.StartsWith(scopePrefix, StringComparison.OrdinalIgnoreCase)) continue;
-                var ident = name.Substring(scopePrefix.Length);
+                var ident = name[scopePrefix.Length..];
                 expires.TryGetValue(expiresPrefix + ident, out var expVal);
                 result[ident] = new YoutubeScopeInfo(kv.Value, expVal);
             }
@@ -179,7 +203,7 @@ public static class YoutubeEndpoints
             {
                 var name = kv.Key;
                 if (!name.StartsWith(expiresPrefix, StringComparison.OrdinalIgnoreCase)) continue;
-                var ident = name.Substring(expiresPrefix.Length);
+                var ident = name[expiresPrefix.Length..];
                 if (!result.ContainsKey(ident))
                 {
                     result[ident] = new YoutubeScopeInfo(null, kv.Value);
