@@ -543,7 +543,7 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
 
             try
             {
-                var existingBroadcastReq = yt.LiveBroadcasts.List("contentDetails");
+                var existingBroadcastReq = yt.LiveBroadcasts.List("contentDetails,status");
                 existingBroadcastReq.Id = broadcastId;
                 var existingBroadcast = (await existingBroadcastReq.ExecuteAsync(cancellationToken)).Items.Single();
 
