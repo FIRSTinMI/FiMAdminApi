@@ -148,7 +148,7 @@ public static class YoutubeEndpoints
 
         try
         {
-            var ok = await youtubeService.SetAutoStopAsync(autoStop, acctEmail, broadcastId, cancellationToken);
+            var ok = await youtubeService.SetAutoStartStopAsync(true, autoStop, acctEmail, broadcastId, null, cancellationToken);
             if (!ok) return TypedResults.Problem("Failed to stop broadcast");
             return TypedResults.Ok();
         }

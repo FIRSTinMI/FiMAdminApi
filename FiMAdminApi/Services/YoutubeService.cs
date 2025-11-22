@@ -456,7 +456,7 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
     /// `broadcastId` should be the broadcast id returned when creating/listing broadcasts.
     /// Returns true on success, false on error.
     /// </summary>
-    public async Task<bool> SetAutoStopAsync(bool autoStop, string acctEmail, string broadcastId, CancellationToken cancellationToken = default)
+    public async Task<bool> SetAutoStartStopAsync(bool autoStart, bool autoStop, string acctEmail, string broadcastId, LiveBroadcast? existingBroadcast = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(acctEmail)) throw new ArgumentNullException(nameof(acctEmail));
         if (string.IsNullOrWhiteSpace(broadcastId)) throw new ArgumentNullException(nameof(broadcastId));
@@ -477,9 +477,12 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
                 ApplicationName = "FiMAdminApi"
             });
 
-            var existingBroadcastReq = yt.LiveBroadcasts.List("contentDetails");
-            existingBroadcastReq.Id = broadcastId;
-            var existingBroadcast = (await existingBroadcastReq.ExecuteAsync(cancellationToken)).Items.Single();
+            if (existingBroadcast is null)
+            {
+                var existingBroadcastReq = yt.LiveBroadcasts.List("contentDetails");
+                existingBroadcastReq.Id = broadcastId;
+                existingBroadcast = (await existingBroadcastReq.ExecuteAsync(cancellationToken)).Items.Single();
+            }
 
             var update = new LiveBroadcast
             {
@@ -487,6 +490,7 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
                 ContentDetails = new LiveBroadcastContentDetails
                 {
                     EnableAutoStop = autoStop,
+                    EnableAutoStart = autoStart,
                     
                     // Persist any other populated values, if not passed in then existing values will be set to defaults
                     MonitorStream = new MonitorStreamInfo
@@ -494,7 +498,6 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
                         EnableMonitorStream = existingBroadcast.ContentDetails.MonitorStream.EnableMonitorStream,
                         BroadcastStreamDelayMs = existingBroadcast.ContentDetails.MonitorStream.BroadcastStreamDelayMs
                     },
-                    EnableAutoStart = existingBroadcast.ContentDetails.EnableAutoStart,
                     EnableClosedCaptions = existingBroadcast.ContentDetails.EnableClosedCaptions,
                     EnableDvr = existingBroadcast.ContentDetails.EnableDvr,
                     EnableEmbed = existingBroadcast.ContentDetails.EnableEmbed,
@@ -540,12 +543,25 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
 
             try
             {
-                // Transition the broadcast to the "complete" lifecycle state using the client library.
-                var transitionReq = yt.LiveBroadcasts.Transition(
-                    Google.Apis.YouTube.v3.LiveBroadcastsResource.TransitionRequest.BroadcastStatusEnum.Complete,
-                    broadcastId,
-                    "id,status");
-                await transitionReq.ExecuteAsync(cancellationToken);
+                var existingBroadcastReq = yt.LiveBroadcasts.List("contentDetails");
+                existingBroadcastReq.Id = broadcastId;
+                var existingBroadcast = (await existingBroadcastReq.ExecuteAsync(cancellationToken)).Items.Single();
+
+                if (existingBroadcast.Status.LifeCycleStatus == "live")
+                {
+                    // Transition the broadcast to the "complete" lifecycle state using the client library.
+                    var transitionReq = yt.LiveBroadcasts.Transition(
+                        Google.Apis.YouTube.v3.LiveBroadcastsResource.TransitionRequest.BroadcastStatusEnum.Complete,
+                        broadcastId,
+                        "id,status");
+                    await transitionReq.ExecuteAsync(cancellationToken);
+                }
+                else
+                {
+                    await SetAutoStartStopAsync(false, false, acctEmail, broadcastId, existingBroadcast,
+                        cancellationToken);
+                }
+                
             }
             catch (Google.GoogleApiException gae) when (gae.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -623,6 +639,7 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
                     IsLive: string.Equals(b.Status?.LifeCycleStatus, "live", StringComparison.OrdinalIgnoreCase) &&
                             (stream is null || (stream.Status.StreamStatus == "active" &&
                                                 stream.Status.HealthStatus.Status == "good")),
+                    AutoStart: b.ContentDetails.EnableAutoStart!.Value,
                     AutoStop: b.ContentDetails.EnableAutoStop!.Value,
                     ScheduledStartTime: b.Snippet?.ScheduledStartTimeDateTimeOffset,
                     ScheduledEndTime: b.Snippet?.ScheduledEndTimeDateTimeOffset
@@ -914,6 +931,7 @@ public record YoutubeBroadcastStatus(
     string[]? StreamHealth,
     string? PrivacyStatus,
     bool IsLive,
+    bool AutoStart,
     bool AutoStop,
     DateTimeOffset? ScheduledStartTime,
     DateTimeOffset? ScheduledEndTime
