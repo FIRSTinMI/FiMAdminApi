@@ -764,7 +764,122 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
             return false;
         }
     }
+
+    /// <summary>
+    /// Stop (complete) a live broadcast for the authorized account by transitioning its lifecycle to "complete".
+    /// Returns true on success or if the broadcast does not exist; false on error.
+    /// </summary>
+    public async Task<bool> StopBroadcastAsync(string acctEmail, string broadcastId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(acctEmail)) throw new ArgumentNullException(nameof(acctEmail));
+        if (string.IsNullOrWhiteSpace(broadcastId)) throw new ArgumentNullException(nameof(broadcastId));
+
+        var accessToken = await GetAuthorizationToken(acctEmail, cancellationToken);
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            logger.LogError("No access token available for account {Email}; cannot stop broadcast.", acctEmail);
+            return false;
+        }
+
+        try
+        {
+            var cred = GoogleCredential.FromAccessToken(accessToken);
+            var yt = new Google.Apis.YouTube.v3.YouTubeService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = cred,
+                ApplicationName = "FiMAdminApi"
+            });
+
+            try
+            {
+                // Transition the broadcast to the "complete" lifecycle state using the client library.
+                var transitionReq = yt.LiveBroadcasts.Transition(
+                    Google.Apis.YouTube.v3.LiveBroadcastsResource.TransitionRequest.BroadcastStatusEnum.Complete,
+                    broadcastId,
+                    "id,status");
+                await transitionReq.ExecuteAsync(cancellationToken);
+            }
+            catch (Google.GoogleApiException gae) when (gae.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                logger.LogInformation("Broadcast {BroadcastId} not found for account {Email}; nothing to stop.", broadcastId, acctEmail);
+                return true;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error stopping/transitioning broadcast {BroadcastId} for account {Email}.", broadcastId, acctEmail);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Retrieve the current broadcasts (first page) status for the authorized account.
+    /// Returns an array of status records describing lifecycle state (e.g. "live", "ready", "complete")
+    /// and basic scheduling info for each broadcast. Returns null on error or if token unavailable.
+    /// </summary>
+    public async Task<YoutubeBroadcastStatus[]?> GetCurrentBroadcastsStatusAsync(string acctEmail, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(acctEmail)) throw new ArgumentNullException(nameof(acctEmail));
+
+        var accessToken = await GetAuthorizationToken(acctEmail, cancellationToken);
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            logger.LogWarning("No access token available for account {Email}; cannot query broadcast status.", acctEmail);
+            return null;
+        }
+
+        try
+        {
+            var cred = GoogleCredential.FromAccessToken(accessToken);
+            var yt = new Google.Apis.YouTube.v3.YouTubeService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = cred,
+                ApplicationName = "FiMAdminApi"
+            });
+
+            var listReq = yt.LiveBroadcasts.List("id,snippet,contentDetails,status");
+            listReq.BroadcastStatus = Google.Apis.YouTube.v3.LiveBroadcastsResource.ListRequest.BroadcastStatusEnum.All;
+            var listResp = await listReq.ExecuteAsync(cancellationToken);
+            var items = listResp.Items;
+
+            if (items == null || items.Count == 0)
+            {
+                return Array.Empty<YoutubeBroadcastStatus>();
+            }
+
+            // Map each broadcast item on the first page to a status record
+            var statuses = items.Select(b =>
+                new YoutubeBroadcastStatus(
+                    BroadcastId: b.Id,
+                    LifeCycleStatus: b.Status?.LifeCycleStatus,
+                    PrivacyStatus: b.Status?.PrivacyStatus,
+                    IsLive: string.Equals(b.Status?.LifeCycleStatus, "live", StringComparison.OrdinalIgnoreCase),
+                    ScheduledStartTime: b.Snippet?.ScheduledStartTimeDateTimeOffset,
+                    ScheduledEndTime: b.Snippet?.ScheduledEndTimeDateTimeOffset
+                )).ToArray();
+
+            return statuses;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving broadcast status for account {Email}.", acctEmail);
+            return null;
+        }
+    }
+
+    
 }
+
+public record YoutubeBroadcastStatus(
+    string? BroadcastId,
+    string? LifeCycleStatus,
+    string? PrivacyStatus,
+    bool IsLive,
+    DateTimeOffset? ScheduledStartTime,
+    DateTimeOffset? ScheduledEndTime
+);
 
 public record GoogleUserInfo(
     string? sub,

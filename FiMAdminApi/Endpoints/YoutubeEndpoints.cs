@@ -27,6 +27,14 @@ public static class YoutubeEndpoints
             .WithSummary("List Google scopes in Vault")
             .WithDescription("Returns all vault secrets with keys starting with 'google:scope:' as a mapping of email -> scopes string and expiry.");
 
+        routeGroup.MapPost("/broadcasts/{broadcastId}/stop", StopBroadcast)
+            .WithSummary("Stop/complete a broadcast")
+            .WithDescription("Transition a broadcast to 'complete' for the given account email and broadcast id.");
+
+        routeGroup.MapGet("/broadcasts/status", GetBroadcastStatus)
+            .WithSummary("Get current broadcast status")
+            .WithDescription("Returns the current broadcast lifecycle/status for the account (live, ready, complete, none).");
+
         return app;
     }
 
@@ -99,6 +107,44 @@ public static class YoutubeEndpoints
             }
 
             return TypedResults.Ok();
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok, ProblemHttpResult>> StopBroadcast(
+        [FromRoute] string broadcastId,
+        [FromQuery] string? acctEmail,
+        [FromServices] YoutubeService youtubeService)
+    {
+        if (string.IsNullOrWhiteSpace(broadcastId)) return TypedResults.Problem("broadcastId is required");
+        if (string.IsNullOrWhiteSpace(acctEmail)) return TypedResults.Problem("acctEmail (account identifier/email) is required as query parameter");
+
+        try
+        {
+            var ok = await youtubeService.StopBroadcastAsync(acctEmail!, broadcastId);
+            if (!ok) return TypedResults.Problem("Failed to stop broadcast");
+            return TypedResults.Ok();
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok<IEnumerable<FiMAdminApi.Services.YoutubeBroadcastStatus>>, ProblemHttpResult>> GetBroadcastStatus(
+        [FromQuery] string? acctEmail,
+        [FromServices] YoutubeService youtubeService)
+    {
+        if (string.IsNullOrWhiteSpace(acctEmail)) return TypedResults.Problem("acctEmail (account identifier/email) is required as query parameter");
+
+        try
+        {
+            var statuses = await youtubeService.GetCurrentBroadcastsStatusAsync(acctEmail!);
+            if (statuses is null) return TypedResults.Problem("Could not retrieve broadcast status or no access token available");
+            return TypedResults.Ok<IEnumerable<FiMAdminApi.Services.YoutubeBroadcastStatus>>(statuses);
         }
         catch (Exception ex)
         {
