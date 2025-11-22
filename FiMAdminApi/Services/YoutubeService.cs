@@ -633,9 +633,11 @@ public class YoutubeService(IConfiguration configuration, ILogger<YoutubeService
                     LifeCycleStatus: b.Status?.LifeCycleStatus,
                     PrivacyStatus: b.Status?.PrivacyStatus,
                     StreamStatus: stream?.Status.StreamStatus,
-                    StreamHealth: stream?.Status.HealthStatus.ConfigurationIssues?
-                        .Where(i => i.Severity is "warning" or "error").Select(i => i.Description)
-                        .ToArray(),
+                    StreamHealth: b.Status?.LifeCycleStatus is not "ready" and not "complete"
+                        ? stream?.Status.HealthStatus.ConfigurationIssues?
+                            .Where(i => i.Severity is "warning" or "error").Select(i => i.Description).Distinct()
+                            .ToArray()
+                        : null,
                     IsLive: string.Equals(b.Status?.LifeCycleStatus, "live", StringComparison.OrdinalIgnoreCase) &&
                             (stream is null || (stream.Status.StreamStatus == "active" &&
                                                 stream.Status.HealthStatus.Status == "good")),
