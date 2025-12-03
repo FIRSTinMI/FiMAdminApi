@@ -156,6 +156,8 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                             var streamDesc = description;
                             var thumbnail = await thumbnailService.DrawThumbnailAsync(program, $"{evt.StartTime:yyyy} {program}", $"{evt.Name}", dayName);
 
+                            logger.LogInformation("Creating YouTube stream for event {EventId} on day {Day} with title '{StreamTitle}' starting at {StreamDate}", evt.Id, day, streamTitle, streamDate);
+
                             // Determine if a stream already exists and we should update, or create new.
                             // Look for existing streams
                             var exactExisting = existingStreams != null ?
@@ -208,6 +210,23 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                             }
                             else
                             {
+                                // We can't create a stream that starts earlier than the current time.  If the stream is BEFORE TODAY, we'll just ignore it.
+                                // If the stream is for TODAY, we'll just set the start time to the nearest hour in the future.
+                                if (streamDate < DateTime.UtcNow)
+                                {
+                                    if (streamDate.Date < DateTime.UtcNow.Date)
+                                    {
+                                        logger.LogInformation("Skipping creation of YouTube stream for event {EventId} on day {Day} since start time {StreamDate} is in the past", evt.Id, day, streamDate);
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        // set to nearest hour in future
+                                        var now = DateTime.Now;
+                                        streamDate = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0).AddHours(1).ToUniversalTime();
+                                        logger.LogInformation("Adjusting YouTube stream start time for event {EventId} on day {Day} to nearest hour in future: {StreamDate}", evt.Id, day, streamDate);
+                                    }
+                                }
                                 logger.LogInformation("No existing YouTube stream found for event {EventId} on day {Day}; creating new stream", evt.Id, day);
                                 youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle, streamDesc, streamDate, thumbnail);
                             }
