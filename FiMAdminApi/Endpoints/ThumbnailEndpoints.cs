@@ -27,7 +27,7 @@ public static class ThumbnailEndpoints
     {
         try
         {
-            var bytes = await thumbnailService.DrawThumbnailAsync(programType ?? "FRC", line1 ?? string.Empty, line2 ?? string.Empty, line3 ?? string.Empty);
+            var bytes = await thumbnailService.DrawThumbnailAsync(programType ?? "FRC", line1, line2, line3);
             return Results.File(bytes, "image/png");
         }
         catch (Exception ex)
