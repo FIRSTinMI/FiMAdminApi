@@ -12,6 +12,7 @@ public class EventStream
     public Guid EventId { get; set; }
 
     public string? Title { get; set; }
+    public bool Primary { get; set; } = true;
 
     [Required]
     public StreamPlatform Platform { get; set; }
@@ -23,5 +24,6 @@ public class EventStream
 
     public string? InternalId { get; set; }
 
-    public DateTimeOffset? StartTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
 }

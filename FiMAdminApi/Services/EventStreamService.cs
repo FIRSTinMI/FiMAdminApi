@@ -193,6 +193,8 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                                             await dataContext.EventStreams.Where(es => es.Id == existingToUpdate.Id).ExecuteUpdateAsync(s => 
                                                 s.SetProperty(e => e.Title, streamTitle)
                                                     .SetProperty(e => e.StartTime, streamDate)
+                                                    // TODO: we should put together StreamInfos first so we can ensure consistency
+                                                    .SetProperty(e => e.EndTime, streamDate.AddDays(1))
                                                     .SetProperty(e => e.Url, $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}")
                                             );
                                         }
@@ -343,7 +345,8 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                                 Platform = provider == "twitch" ? Models.Enums.StreamPlatform.Twitch : Models.Enums.StreamPlatform.Youtube,
                                 Title = s.streamName,
                                 Url = s.embedUrl,
-                                StartTime = s.startTime
+                                StartTime = s.startTime,
+                                EndTime = s.endTime
                             };
 
                             dataContext.EventStreams?.Add(dbStream);
