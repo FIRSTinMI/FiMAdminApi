@@ -73,7 +73,7 @@ internal partial class SetEquipmentSlackProfileRegexes
     [GeneratedRegex("^FIM District (.*) Event$")]
     public static partial Regex FimDistrict();
     
-    [GeneratedRegex("^Michigan State Championship - (.*) Division$")]
+    [GeneratedRegex("^Michigan State Championship ?- ?(.*) Division$")]
     public static partial Regex FimChampDivision();
 
     [GeneratedRegex("(\\d+)$")]
