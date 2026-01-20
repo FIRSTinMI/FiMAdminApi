@@ -122,7 +122,9 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
         dbContext.ChangeTracker.DetectChanges();
         if (dbContext.ChangeTracker.Entries<Match>().Any(e => e.State != EntityState.Unchanged))
         {
-            await firebaseRepository.UpdateEventPlayoffMatches(evt, dbMatches, alliances);
+            await firebaseRepository.UpdateEventPlayoffMatches(evt,
+                dbContext.Matches.Local.Where(m => m.TournamentLevel == TournamentLevel.Playoff && m.EventId == evt.Id)
+                    .ToList(), alliances);
         }
         await dbContext.SaveChangesAsync();
 
