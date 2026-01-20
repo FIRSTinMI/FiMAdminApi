@@ -267,6 +267,7 @@ public class FtcEventsDataClient : RestClient, IDataClient
             WebUrlType.Home => baseUrl,
             WebUrlType.QualSchedule => $"{baseUrl}/qualifications",
             WebUrlType.PlayoffSchedule => $"{baseUrl}/playoffs",
+            WebUrlType.ShortLink => baseUrl.Replace("https://ftc-events.firstinspires.org", "ftc.events"),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }

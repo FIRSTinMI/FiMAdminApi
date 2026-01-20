@@ -38,10 +38,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Assets\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <None Include="Assets\**\*">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
@@ -50,6 +46,7 @@
     <ItemGroup>
       <ProjectReference Include="..\FiMAdminApi.Clients\FiMAdminApi.Clients.csproj" />
       <ProjectReference Include="..\FiMAdminApi.Data.EfPgsql\FiMAdminApi.Data.EfPgsql.csproj" />
+      <ProjectReference Include="..\FiMAdminApi.Data.Firebase\FiMAdminApi.Data.Firebase.csproj" />
       <ProjectReference Include="..\FiMAdminApi.Models\FiMAdminApi.Models.csproj" />
     </ItemGroup>
 

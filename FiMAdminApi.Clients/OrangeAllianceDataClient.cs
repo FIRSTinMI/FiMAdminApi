@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.Json.Serialization;
 using System.Globalization;
+using FiMAdminApi.Models.Enums;
 
 namespace FiMAdminApi.Clients;
 
@@ -68,7 +69,7 @@ public class OrangeAllianceDataClient : RestClient
         string eventKey,
         string channelName,
         string streamName,
-        string provider,
+        StreamPlatform provider,
         string streamLink,
         string channelLink,
         DateTime startDate,
@@ -81,8 +82,8 @@ public class OrangeAllianceDataClient : RestClient
 
         var streamType = provider switch
         {
-            "twitch" => 1,
-            "youtube" => 0,
+            StreamPlatform.Twitch => 1,
+            StreamPlatform.Youtube => 0,
             _ => -1
         };
 

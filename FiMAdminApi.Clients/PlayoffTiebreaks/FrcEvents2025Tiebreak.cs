@@ -6,17 +6,18 @@ namespace FiMAdminApi.Clients.PlayoffTiebreaks;
 
 internal class FrcEvents2025Tiebreak : IPlayoffTiebreak
 {
+    private static readonly string[] ValidSeasons = ["2025", "2026"];
     public FrcEvents2025Tiebreak(FrcEventsDataClient dataClient, Event evt)
     {
         if (evt.Season is null) throw new ApplicationException("Season not provided");
-        if (FrcEventsDataClient.GetSeason(evt.Season) != "2025")
+        if (!ValidSeasons.Contains(FrcEventsDataClient.GetSeason(evt.Season)))
             throw new ApplicationException(
                 $"Unable to process tiebreaks for an event in the {FrcEventsDataClient.GetSeason(evt.Season)} season");
         _scoreDetails =
             new Lazy<Task<ScoreDetailResponse?>>(() => dataClient.GetPlayoffScoreDetails<ScoreDetailResponse>(evt)!);
     }
     
-    private Lazy<Task<ScoreDetailResponse?>> _scoreDetails;
+    private readonly Lazy<Task<ScoreDetailResponse?>> _scoreDetails;
     
     public async Task<MatchWinner?> DetermineMatchWinner(PlayoffMatch match)
     {

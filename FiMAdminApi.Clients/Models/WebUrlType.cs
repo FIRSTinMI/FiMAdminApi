@@ -4,5 +4,6 @@ public enum WebUrlType
 {
     Home,
     QualSchedule,
-    PlayoffSchedule
+    PlayoffSchedule,
+    ShortLink
 }

@@ -1,12 +1,13 @@
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class UpdateQualRankings(DataContext dbContext)
+public class UpdateQualRankings(DataContext dbContext, FrcFirebaseRepository firebaseRepository)
     : EventSyncStep([EventStatus.QualsInProgress, EventStatus.AwaitingAlliances])
 {
     public override async Task RunStep(Event evt, IDataClient eventDataClient)
@@ -52,6 +53,9 @@ public class UpdateQualRankings(DataContext dbContext)
                 dbContext.EventRankings.Add(dbRanking);
             }
         }
+
+        // TODO: is this the best option? We could more closely keep track of the full list in this sync step
+        await firebaseRepository.UpdateEventRankings(evt, dbContext.EventRankings.Local.ToList());
 
         await dbContext.SaveChangesAsync();
     }
