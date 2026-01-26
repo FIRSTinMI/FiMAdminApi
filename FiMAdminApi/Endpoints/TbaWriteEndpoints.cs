@@ -17,7 +17,7 @@ public static class TbaWriteEndpoints
             .RequireAuthorization(nameof(GlobalPermission.Superuser));
 
         routeGroup.MapPut("{eventId:guid}/videos", AddMatchVideos)
-            .WithSummary("Add a videos to matches")
+            .WithSummary("Add a video to matches")
             .WithDescription(
                 "Add additional videos to the specified matches (key: TBA match key, value: YouTube video ID)");
         

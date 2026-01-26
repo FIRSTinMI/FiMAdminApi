@@ -2,6 +2,7 @@ using FiMAdminApi.Clients;
 using FiMAdminApi.Clients.PlayoffTiebreaks;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.EventHandlers;
 using FiMAdminApi.Events;
 using FiMAdminApi.Models.Enums;
@@ -10,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffResults> logger, EventPublisher eventPublisher)
+public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffResults> logger, EventPublisher eventPublisher, FrcFirebaseRepository firebaseRepository)
     : EventSyncStep([EventStatus.AwaitingPlayoffs, EventStatus.PlayoffsInProgress])
 {
     private static readonly TimeSpan MatchStartTolerance = TimeSpan.FromMinutes(1);
@@ -118,8 +119,16 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
             }
         }
 
+        dbContext.ChangeTracker.DetectChanges();
+        if (dbContext.ChangeTracker.Entries<Match>().Any(e => e.State != EntityState.Unchanged))
+        {
+            await firebaseRepository.UpdateEventPlayoffMatches(evt,
+                dbContext.Matches.Local.Where(m => m.TournamentLevel == TournamentLevel.Playoff && m.EventId == evt.Id)
+                    .ToList(), alliances);
+        }
         await dbContext.SaveChangesAsync();
 
+        // TODO: we literally already have all of this data why go to the DB
         // If an alliance has won 2 finals matches, they're the winner of the event
         if (evt.Status == EventStatus.PlayoffsInProgress && await dbContext.Matches.Where(m =>
                     m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Playoff && m.MatchName != null &&

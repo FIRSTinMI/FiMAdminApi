@@ -1,14 +1,16 @@
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.EventHandlers;
 using FiMAdminApi.Events;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
+using FiMAdminApi.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class LoadQualSchedule(DataContext dbContext, EventPublisher eventPublisher) : EventSyncStep([EventStatus.AwaitingQuals])
+public class LoadQualSchedule(DataContext dbContext, EventPublisher eventPublisher, FrcFirebaseRepository firebaseRepo) : EventSyncStep([EventStatus.AwaitingQuals])
 {
     public override async Task RunStep(Event evt, IDataClient dataClient)
     {
@@ -40,6 +42,7 @@ public class LoadQualSchedule(DataContext dbContext, EventPublisher eventPublish
                 PostResultTime = null,
                 IsDiscarded = false
             }).ToList();
+            var dbDeviations = new List<ScheduleDeviation>();
             
             await dbContext.Matches.AddRangeAsync(dbMatches);
 
@@ -57,7 +60,7 @@ public class LoadQualSchedule(DataContext dbContext, EventPublisher eventPublish
                 var startDifference = nextMatch.ScheduledStartTime - currentMatch.ScheduledStartTime;
                 if (startDifference.Value.TotalHours > 8)
                 {
-                    dbContext.ScheduleDeviations.Add(new ScheduleDeviation
+                    dbDeviations.Add(new ScheduleDeviation
                     {
                         EventId = evt.Id,
                         Description = "End of Day",
@@ -66,15 +69,24 @@ public class LoadQualSchedule(DataContext dbContext, EventPublisher eventPublish
                     });
                 } else if (startDifference.Value.TotalHours > 0.7)
                 {
-                    dbContext.ScheduleDeviations.Add(new ScheduleDeviation
+                    var timeZone = TimeZoneInfo.FindSystemTimeZoneById(evt.TimeZone);
+                    var isAroundMidday =
+                        TimeZoneInfo.ConvertTimeFromUtc(currentMatch.ScheduledStartTime.Value, timeZone).Hour is >= 11
+                            and <= 13;
+                    
+                    dbDeviations.Add(new ScheduleDeviation
                     {
                         EventId = evt.Id,
-                        Description = "Break",
+                        Description = isAroundMidday ? "Lunch" : "Break",
                         AfterMatchId = currentMatch.Id,
                         AssociatedMatchId = null
                     });
                 }
             }
+            
+            dbContext.ScheduleDeviations.AddRange(dbDeviations);
+
+            await firebaseRepo.UpdateEventQualMatches(evt, dbMatches, dbDeviations);
 
             if (evt.Status == EventStatus.AwaitingQuals)
             {

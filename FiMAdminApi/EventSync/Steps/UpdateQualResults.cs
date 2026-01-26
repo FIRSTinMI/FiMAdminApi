@@ -1,5 +1,6 @@
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.EventHandlers;
 using FiMAdminApi.Events;
 using FiMAdminApi.Models.Enums;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FiMAdminApi.EventSync.Steps;
 
 // Note: this step runs while awaiting alliances to ensure that any replays are picked up
-public class UpdateQualResults(DataContext dbContext, EventPublisher eventPublisher) : EventSyncStep([EventStatus.QualsInProgress, EventStatus.AwaitingAlliances])
+public class UpdateQualResults(DataContext dbContext, EventPublisher eventPublisher, FrcFirebaseRepository? firebase = null) : EventSyncStep([EventStatus.QualsInProgress, EventStatus.AwaitingAlliances])
 {
     private static readonly TimeSpan MatchStartTolerance = TimeSpan.FromMinutes(1);
     
@@ -62,8 +63,10 @@ public class UpdateQualResults(DataContext dbContext, EventPublisher eventPublis
             dbMatch.PostResultTime = apiMatch.PostResultTime;
             dbMatch.MatchVideoLink = apiMatch.MatchVideoLink;
         }
-
-        await dbContext.SaveChangesAsync();
+        
+        var currentMatchNumber = (apiMatches.FindLast(m => m.ActualStartTime != null)?.MatchNumber ?? 0) + 1;
+        await Task.WhenAll(dbContext.SaveChangesAsync(),
+            firebase?.UpdateEventQualCurrentMatchNumber(evt, currentMatchNumber) ?? Task.CompletedTask);
 
         if (evt.Status == EventStatus.QualsInProgress && await dbContext.Matches.CountAsync(m =>
                 m.EventId == evt.Id && m.TournamentLevel == TournamentLevel.Qualification &&

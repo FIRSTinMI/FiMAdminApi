@@ -5,7 +5,7 @@ using SlackNet.WebApi;
 
 namespace FiMAdminApi.Services;
 
-public class SlackService(ISlackApiClient? slackClient, IConfiguration configuration, ILogger<SlackService> logger, VaultService vaultService)
+public class SlackService(IConfiguration configuration, ILogger<SlackService> logger, VaultService vaultService, ISlackApiClient? slackClient = null)
 {
     public async Task SendMessage(SlackChannel channel, string message, string? buttonText = null, string? buttonUrl = null)
     {
@@ -62,7 +62,9 @@ public class SlackService(ISlackApiClient? slackClient, IConfiguration configura
         await slackClient.WithAccessToken(token).UserProfile.Set(new UserProfile
         {
             RealName = newName,
-            DisplayName = newName
+            DisplayName = newName,
+            StatusEmoji = "",
+            StatusText = ""
         }, userId);
     }
 

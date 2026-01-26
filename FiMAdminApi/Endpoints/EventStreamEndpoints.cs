@@ -16,7 +16,7 @@ public static class EventStreamEndpoints
     {
         var group = app.MapGroup("/api/v{apiVersion:apiVersion}/event-streams")
             .WithApiVersionSet(vs).HasApiVersion(1).WithTags("EventStreams")
-            .RequireAuthorization(nameof(GlobalPermission.Superuser));
+            .RequireAuthorization(nameof(GlobalPermission.Equipment_Av_ManageStream));
 
         group.MapPost("", CreateEventStreams)
             .WithDescription("Create or update event streams for a set of events");
@@ -51,15 +51,10 @@ public static class EventStreamEndpoints
         var (isValid, validationErrors) = await MiniValidation.MiniValidator.TryValidateAsync(request);
         if (!isValid) return TypedResults.ValidationProblem(validationErrors);
 
-        if (request.EventIds is null || request.EventIds.Length == 0)
-        {
-            var errs = new Dictionary<string, string[]> { { "EventIds", new[] { "Required" } } };
-            return TypedResults.ValidationProblem(errs);
-        }
-
         var events = await dbContext.Events
             .Where(e => request.EventIds.Contains(e.Id))
             .Include(e => e.TruckRoute)
+            .Include(e => e.Season)
             .ToArrayAsync();
 
         if (events.Length == 0) return TypedResults.NotFound();
@@ -72,6 +67,7 @@ public static class EventStreamEndpoints
     public class CreateEventStreamsRequest
     {
         [Required]
+        [MinLength(1)]
         public required Guid[] EventIds { get; set; }
     }
 }

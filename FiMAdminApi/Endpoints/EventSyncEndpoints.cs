@@ -1,16 +1,15 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Auth;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.EventSync;
-using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
-using Firebase.Database;
+using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SlackNet;
+using File = System.IO.File;
 
 namespace FiMAdminApi.Endpoints;
 
@@ -27,7 +26,7 @@ public static class EventSyncEndpoints
         eventsGroup.MapPut("{eventId:guid}/force/{syncStepName}", ForceEventSyncStep);
         eventsGroup.MapPut("current", SyncCurrentEvents)
             .WithDescription("Sync all current events");
-        eventsGroup.MapPost("firebase-dev", SyncEventsToFirebase);
+        // eventsGroup.MapPut("daily", RunDailySync);
 
         return app;
     }
@@ -114,59 +113,10 @@ public static class EventSyncEndpoints
         return TypedResults.Ok(eventSyncResult);
     }
 
-    private static async Task<Ok> SyncEventsToFirebase([FromServices] DataContext context, [FromServices] FirebaseClient firebase)
-    {
-        var events = await context.Events
-            .Where(e => e.Season != null && e.Season.Level != null && e.Season.Level.Name == "FRC" &&
-                        e.StartTime.Year == DateTime.Now.Year).ToListAsync();
-
-        var carts = await context.Equipment.Where(e => e.EquipmentType != null && e.EquipmentType.Name == "AV Cart")
-            .ToListAsync();
-
-        foreach (var evt in events)
-        {
-            var eventTimezone = TimeZoneInfo.FindSystemTimeZoneById(evt.TimeZone);
-            await firebase.Child($"/seasons/{evt.StartTime.Year}/events/{evt.Key}").PutAsync(JsonSerializer.Serialize(
-                new
-                {
-                    eventCode = evt.Code,
-                    startMs = new DateTimeOffset(evt.StartTime).ToUnixTimeMilliseconds(),
-                    endMs = new DateTimeOffset(evt.EndTime).ToUnixTimeMilliseconds(),
-                    start = new DateTimeOffset(TimeZoneInfo.ConvertTimeFromUtc(evt.StartTime, eventTimezone),
-                        eventTimezone.GetUtcOffset(evt.StartTime)),
-                    end = new DateTimeOffset(TimeZoneInfo.ConvertTimeFromUtc(evt.EndTime, eventTimezone),
-                        eventTimezone.GetUtcOffset(evt.EndTime)),
-                    state = GetFirebaseStatus(evt.Status),
-                    name = evt.Name,
-                    streamEmbedLink = (string?)null,
-                    dataSource = evt.SyncSource switch
-                    {
-                        DataSources.FrcEvents => "frcEvents",
-                        DataSources.BlueAlliance => "blueAlliance",
-                        _ => null
-                    },
-                    cartId = evt.TruckRouteId is not null
-                        ? carts.FirstOrDefault(c => c.TruckRouteId == evt.TruckRouteId)?.Id
-                        : null
-                }));
-        }
-
-        return TypedResults.Ok();
-
-        string GetFirebaseStatus(EventStatus dbStatus)
-        {
-            return dbStatus switch
-            {
-                EventStatus.NotStarted => "Pending",
-                EventStatus.AwaitingQuals => "AwaitingQualSchedule",
-                EventStatus.QualsInProgress => "QualsInProgress",
-                EventStatus.AwaitingAlliances => "AwaitingAlliances",
-                EventStatus.AwaitingPlayoffs => "PlayoffsInProgress",
-                EventStatus.PlayoffsInProgress => "PlayoffsInProgress",
-                EventStatus.WinnerDetermined => "EventOver",
-                EventStatus.Completed => "EventOver",
-                _ => throw new ArgumentOutOfRangeException(nameof(dbStatus), dbStatus, null)
-            };
-        }
-    }
-}
+    // private static async Task<Ok> RunDailySync([FromServices] DataContext dbContext, [FromServices] SlackService slackService)
+    // {
+    //     var currentEvents = await dbContext.Events.Where(e =>
+    //             e.TruckRouteId != null && e.StartTime.AddDays(-1) < DateTime.UtcNow && e.EndTime > DateTime.UtcNow)
+    //         .ToListAsync();
+    // }
+}   

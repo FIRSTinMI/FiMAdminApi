@@ -5,6 +5,7 @@ using FiMAdminApi.Auth;
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.Endpoints;
 using FiMAdminApi.EventHandlers;
 using FiMAdminApi.EventSync;
@@ -137,23 +138,7 @@ builder.Services.AddAvCartService();
 builder.Services.AddEventSyncSteps();
 builder.Services.AddOutputCache();
 builder.Services.AddEventHandlers();
-
-var accountCred = await GoogleCredential.GetApplicationDefaultAsync();
-var credential = accountCred.CreateScoped(
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/firebase.database");
-
-async Task<string> GetAccessToken()
-{
-    return await (credential as ITokenAccess).GetAccessTokenForRequestAsync();
-}
-
-builder.Services.AddSingleton(_ => new FirebaseClient(builder.Configuration["Firebase:BaseUrl"],
-    new FirebaseOptions
-    {
-        AuthTokenAsyncFactory = GetAccessToken,
-        AsAccessToken = true
-    }));
+await builder.Services.AddFirebaseFromAppDefaultCredentials(builder.Configuration["Firebase:BaseUrl"]);
 
 var app = builder.Build();
 

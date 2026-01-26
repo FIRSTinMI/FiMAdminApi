@@ -1,367 +1,378 @@
 using FiMAdminApi.Clients;
+using FiMAdminApi.Clients.Extensions;
+using FiMAdminApi.Clients.Models;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
+using Event = FiMAdminApi.Models.Models.Event;
 
 namespace FiMAdminApi.Services;
 
-
 public class EventStreamService(DataContext dataContext, IServiceProvider services, ILogger<EventStreamService> logger)
 {
-    public async Task CreateEventStreams(Event[] events)
+    public async Task CreateEventStreamFromRoute(Event evt, CancellationToken? cancellationToken = null)
     {
-        foreach (var evt in events)
+        var ct = cancellationToken ?? CancellationToken.None;
+        
+        if (evt.TruckRoute == null)
         {
-            // Skip if no truck route
-            if (evt.TruckRoute == null)
+            logger.LogWarning("Event {EventId} has no associated truck route; skipping stream creation", evt.Id);
+            return;
+        }
+
+        // skip if no streaming config
+        var routeStreamConfig = evt.TruckRoute.StreamingConfig;
+        if (routeStreamConfig == null)
+        {
+            logger.LogWarning(
+                "Truck route {TruckRouteId} has no streaming config for event {EventId}; skipping stream creation",
+                evt.TruckRoute.Id, evt.Id);
+            return;
+        }
+
+        // skip if no streaming channel id or type
+        if (string.IsNullOrWhiteSpace(routeStreamConfig.Channel_Id))
+        {
+            logger.LogWarning(
+                "Truck route {TruckRouteId} has incomplete streaming config for event {EventId}; skipping stream creation",
+                evt.TruckRoute.Id, evt.Id);
+            return;
+        }
+
+        // create the stream based on provider
+        var streamKey = string.Empty;
+        var rtmpUrl = string.Empty;
+        var streams = new List<StreamInfo>();
+        var provider = routeStreamConfig.Channel_Type;
+
+        var description = evt.GetWebUrl(WebUrlType.Home);
+        var descriptionShort = $" {evt.GetWebUrl(WebUrlType.ShortLink)}";
+        var prefix = "";
+        var program = "";
+        switch (evt.SyncSource)
+        {
+            case DataSources.FtcEvents:
+                prefix = $"{evt.StartTime:yyyy} MI FTC";
+                program = "FTC";
+                break;
+            case DataSources.FrcEvents:
+            case DataSources.BlueAlliance:
+                prefix = $"{evt.StartTime:yyyy} MI FRC";
+                program = "FRC";
+                break;
+        }
+
+        // Actually create or update the stream
+        if (provider == StreamPlatform.Twitch)
+        {
+            logger.LogInformation("Creating Twitch event stream for event {EventId}", evt.Id);
+            var twitchService = services.GetService<TwitchService>();
+            if (twitchService != null)
             {
-                logger.LogWarning("Event {EventId} has no associated truck route; skipping stream creation", evt.Id);
-                continue;
-            }
-
-            // get the truck route
-            var truckRouteData = dataContext.TruckRoutes.FirstOrDefault(r => r.Id == evt.TruckRoute.Id);
-
-            if (truckRouteData == null)
-            {
-                logger.LogWarning("Truck route {TruckRouteId} not found for event {EventId}; skipping stream creation", evt.TruckRoute.Id, evt.Id);
-                continue;
-            }
-
-            // skip if no streaming config
-            if (truckRouteData.StreamingConfig == null)
-            {
-                logger.LogWarning("Truck route {TruckRouteId} has no streaming config for event {EventId}; skipping stream creation", truckRouteData.Id, evt.Id);
-                continue;
-            }
-
-            // skip if no streaming channel id or type
-            if (string.IsNullOrWhiteSpace(truckRouteData.StreamingConfig.Channel_Id) ||
-                string.IsNullOrWhiteSpace(truckRouteData.StreamingConfig.Channel_Type))
-            {
-                logger.LogWarning("Truck route {TruckRouteId} has incomplete streaming config for event {EventId}; skipping stream creation", truckRouteData.Id, evt.Id);
-                continue;
-            }
-
-            // create the stream based on provider
-            var streamKey = string.Empty;
-            var rtmpUrl = string.Empty;
-            var streams = new List<StreamInfo>();
-            var provider = truckRouteData.StreamingConfig.Channel_Type;
-
-
-            var description = "";
-            var descriptionShort = "";
-            var prefix = "";
-            var program = "";
-            switch (evt.SyncSource)
-            {
-                case Models.Enums.DataSources.FtcEvents:
-                    prefix = $"{evt.StartTime:yyyy} MI FTC";
-                    description = $"https://ftc.events/{evt.Code}";
-                    program = "FTC";
-                    descriptionShort = $" ftc.events/{evt.Code}";
-                    break;
-                case Models.Enums.DataSources.FrcEvents:
-                    prefix = $"{evt.StartTime:yyyy} MI FRC";
-                    description = $"https://frc.events/{evt.Code}";
-                    program = "FRC";
-                    descriptionShort = $" frc.events/{evt.Code}";
-                    break;
-                case Models.Enums.DataSources.BlueAlliance:
-                    prefix = $"{evt.StartTime:yyyy} MI FRC";
-                    description = $"https://www.thebluealliance.com/event/{evt.Code}";
-                    program = "FRC";
-                    break;
-                default:
-                    prefix = "";
-                    break;
-            }
-
-            // Actually create or update the stream
-            if (provider == "twitch")
-            {
-                logger.LogInformation("Creating Twitch event stream for event {EventId}", evt.Id);
-                var twitchService = services.GetService<TwitchService>();
-                if (twitchService != null)
+                var twitchSuccess = await twitchService.UpdateLivestreamInformation(routeStreamConfig.Channel_Id!,
+                    $"{prefix} {evt.Name}{descriptionShort}");
+                if (twitchSuccess)
                 {
-                    var twitchSuccess = await twitchService.UpdateLivestreamInformation(truckRouteData.StreamingConfig.Channel_Id!, $"{prefix} {evt.Name}{descriptionShort}");
-                    if (twitchSuccess)
+                    streamKey = await twitchService.GetStreamKey(routeStreamConfig.Channel_Id!);
+                    var config = services.GetService<IConfiguration>();
+                    if (config != null)
                     {
-                        streamKey = await twitchService.GetStreamKey(truckRouteData.StreamingConfig.Channel_Id!);
-                        var config = services.GetService<IConfiguration>();
-                        if (config != null)
+                        var configuredRtmp = config["Twitch:RtmpUrl"];
+                        if (!string.IsNullOrWhiteSpace(configuredRtmp))
                         {
-                            var configuredRtmp = config["Twitch:RtmpUrl"];
-                            if (!string.IsNullOrWhiteSpace(configuredRtmp))
-                            {
-                                rtmpUrl = configuredRtmp;
-                            }
-                            else
-                            {
-                                logger.LogWarning("Twitch:RtmpUrl not set in configuration; falling back to default RTMP URL for channel {ChannelId}", truckRouteData.StreamingConfig.Channel_Id);
-                                rtmpUrl = "rtmp://use20.contribute.live-video.net/app/";
-                            }
+                            rtmpUrl = configuredRtmp;
                         }
                         else
                         {
-                            logger.LogWarning("IConfiguration service unavailable; falling back to default RTMP URL for channel {ChannelId}", truckRouteData.StreamingConfig.Channel_Id);
+                            logger.LogWarning(
+                                "Twitch:RtmpUrl not set in configuration; falling back to default RTMP URL for channel {ChannelId}",
+                                routeStreamConfig.Channel_Id);
                             rtmpUrl = "rtmp://use20.contribute.live-video.net/app/";
                         }
-                        streams.Add(new StreamInfo
-                        {
-                            embedUrl = $"https://player.twitch.tv/?channel={truckRouteData.StreamingConfig.Channel_Id}",
-                            channelUrl = $"https://www.twitch.tv/{truckRouteData.StreamingConfig.Channel_Id}",
-                            streamName = $"{prefix} {evt.Name}",
-                            startTime = evt.StartTime,
-                            endTime = evt.EndTime,
-                            internalId = truckRouteData.StreamingConfig.Channel_Id,
-                            isUpdate = false
-                        });
                     }
-                }
-            }
-            else if (provider == "youtube")
-            {
-                logger.LogInformation("Creating YouTube event stream for event {EventId}", evt.Id);
-                var youtubeService = services.GetService<YoutubeService>();
-                var thumbnailService = services.GetService<ThumbnailService>();
-
-                // Get all livestreams that exist for the current event
-                var existingStreams = dataContext.EventStreams?
-                    .Where(es => es.EventId == evt.Id && es.Platform == Models.Enums.StreamPlatform.Youtube)
-                    .ToList();
-                if (youtubeService != null && thumbnailService != null)
-                {
-                    logger.LogInformation("YouTubeService and ThumbnailService available; proceeding to create YouTube stream for event {EventId}", evt.Id);
-                    try
+                    else
                     {
-                        // Count number of days that the event is going on
-                        var eventDuration = Math.Ceiling((evt.EndTime - evt.StartTime).TotalDays) - 2; // -1 day for "buffer" day, -1 because math is hard.
-                        var acctId = truckRouteData.StreamingConfig.Channel_Id!;
-
-                        logger.LogInformation("YouTube account ID for event {EventId} is {AcctId}", evt.Id, acctId);
-                        logger.LogInformation("Event {EventId} duration is {EventDuration} days", evt.Id, eventDuration);
-
-                        // List of streams to be created
-                        var youtubeStreams = new List<YoutubeIngestionInfo>();
-
-                        // Create the streams
-                        for (int day = 0; day <= eventDuration; day++)
-                        {
-                            var dayName = eventDuration > 0 ? (day == 0 ? "Practice Day" : $"Day {day}") : "";
-                            var daySuffix = !string.IsNullOrEmpty(dayName) ? $" - {dayName}" : "";
-                            var streamDate = evt.StartTime.AddDays(day + 1);
-                            var streamTitle = $"{prefix} {evt.Name}{daySuffix}";
-                            var streamDesc = description;
-                            var thumbnail = await thumbnailService.DrawThumbnailAsync(program, $"{evt.StartTime:yyyy} {program}", $"{evt.Name}", dayName);
-
-                            logger.LogInformation("Creating YouTube stream for event {EventId} on day {Day} with title '{StreamTitle}' starting at {StreamDate}", evt.Id, day, streamTitle, streamDate);
-
-                            // Determine if a stream already exists and we should update, or create new.
-                            // Look for existing streams
-                            var exactExisting = existingStreams != null ?
-                                          existingStreams.FindAll(es =>
-                                              (es.Title != null && es.Title.EndsWith(daySuffix, StringComparison.OrdinalIgnoreCase))
-                                              || (es.StartTime != null && DateTimeOffset.Compare((DateTimeOffset)es.StartTime, streamDate) == 0))
-                                              : new List<EventStream>();
-
-                            // 1. Stream exists if eventDuration is 0 and there is 1 existing stream
-                            var exists1 = existingStreams != null &&
-                                          eventDuration == 0 &&
-                                          existingStreams.Count == 1;
-                            // 2. Look for stream with identical suffixes or start dates
-                            var exists2 = existingStreams != null && exactExisting.Count > 0;
-
-                            YoutubeIngestionInfo? youtubeStream = null;
-                            if (exists1 || exists2)
-                            {
-                                logger.LogInformation("Existing YouTube stream found for event {EventId} on day {Day}; updating stream", evt.Id, day);
-
-                                // Choose DB record to update
-                                EventStream? existingToUpdate = exactExisting.FirstOrDefault();
-
-                                if (existingToUpdate != null && !string.IsNullOrWhiteSpace(existingToUpdate.InternalId))
-                                {
-                                    youtubeStream = await youtubeService.UpdateExistingLiveStreamAsync(acctId, existingToUpdate.InternalId, streamTitle, streamDesc, streamDate, thumbnail);
-
-                                    // Update the db
-                                    if (youtubeStream != null && existingToUpdate != null && dataContext.EventStreams != null)
-                                    {
-                                        try
-                                        {
-                                            await dataContext.EventStreams.Where(es => es.Id == existingToUpdate.Id).ExecuteUpdateAsync(s => 
-                                                s.SetProperty(e => e.Title, streamTitle)
-                                                    .SetProperty(e => e.StartTime, streamDate)
-                                                    // TODO: we should put together StreamInfos first so we can ensure consistency
-                                                    .SetProperty(e => e.EndTime, streamDate.AddDays(1))
-                                                    .SetProperty(e => e.Url, $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}")
-                                            );
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            logger.LogError(ex, "Failed to update EventStream record {EventStreamId} for event {EventId}", existingToUpdate.Id, evt.Id);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    logger.LogInformation("Could not resolve broadcast id for existing stream; creating new stream instead for event {EventId} day {Day}", evt.Id, day);
-                                    youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle, streamDesc, streamDate, thumbnail);
-                                }
-                            }
-                            else
-                            {
-                                // We can't create a stream that starts earlier than the current time.  If the stream is BEFORE TODAY, we'll just ignore it.
-                                // If the stream is for TODAY, we'll just set the start time to the nearest hour in the future.
-                                if (streamDate < DateTime.UtcNow)
-                                {
-                                    if (streamDate.Date < DateTime.UtcNow.Date)
-                                    {
-                                        logger.LogInformation("Skipping creation of YouTube stream for event {EventId} on day {Day} since start time {StreamDate} is in the past", evt.Id, day, streamDate);
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        // set to nearest hour in future
-                                        var now = DateTime.Now;
-                                        streamDate = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0).AddHours(1).ToUniversalTime();
-                                        logger.LogInformation("Adjusting YouTube stream start time for event {EventId} on day {Day} to nearest hour in future: {StreamDate}", evt.Id, day, streamDate);
-                                    }
-                                }
-                                logger.LogInformation("No existing YouTube stream found for event {EventId} on day {Day}; creating new stream", evt.Id, day);
-                                youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle, streamDesc, streamDate, thumbnail);
-                            }
-
-                            if (youtubeStream != null)
-                            {
-                                youtubeStreams.Add(youtubeStream);
-                                streams.Add(new StreamInfo
-                                {
-                                    embedUrl = $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}",
-                                    channelUrl = $"https://www.youtube.com/channel/{youtubeStream.ChannelId}",
-                                    streamName = streamTitle,
-                                    startTime = streamDate,
-                                    endTime = streamDate.AddHours(24),
-                                    internalId = youtubeStream.BroadcastId,
-                                    isUpdate = exists1 || exists2
-                                });
-                            }
-                        }
-                        var firstStream = youtubeStreams.FirstOrDefault();
-                        if (firstStream != null)
-                        {
-                            // Use the ingestion address as the RTMP URL and the stream name as the key
-                            rtmpUrl = firstStream.RtmpIngestionAddress;
-                            streamKey = firstStream.StreamName;
-                        }
+                        logger.LogWarning(
+                            "IConfiguration service unavailable; falling back to default RTMP URL for channel {ChannelId}",
+                            routeStreamConfig.Channel_Id);
+                        rtmpUrl = "rtmp://use20.contribute.live-video.net/app/";
                     }
-                    catch (Exception ex)
+                    streams.Add(new StreamInfo
                     {
-                        logger.LogError(ex, "Error while creating YouTube stream(s) for event {EventId}", evt.Id);
-                    }
-                }
-                else
-                {
-                    logger.LogError($"Cnnot create YouTube stream for event {evt.Id}. Missing YoutubeService or ThumbnailService.");
-                }
-            }
-
-            // Update stream key if it is not empty
-            if (!string.IsNullOrEmpty(streamKey))
-            {
-                // get the first av cart that is assigned to this route
-                var cart = dataContext.AvCarts.FirstOrDefault(e => e.TruckRouteId == truckRouteData.Id);
-                if (cart != null)
-                {
-                    cart.SetFirstStreamInfo(rtmpUrl, streamKey);
-                    await dataContext.SaveChangesAsync();
-                }
-            }
-
-            if (streams.Any() && !string.IsNullOrEmpty(evt.Code) && evt.SyncSource == Models.Enums.DataSources.FtcEvents)
-            {
-                var oaClient = services.GetService<OrangeAllianceDataClient>();
-                if (oaClient != null)
-                {
-                    // Attempt to find the TOA event key
-                    var toaEventKey = await oaClient.GetEventKeyFromFTCEventsKey(evt.Code);
-                    if (string.IsNullOrEmpty(toaEventKey))
-                    {
-                        logger.LogWarning("Could not find TOA event key for event {EventId} with FTCEvents key {FTCEventsKey}", evt.Id, evt.Code);
-                        continue;
-                    }
-                    // Update the event stream
-                    if (provider == null)
-                    {
-                        logger.LogWarning("Stream provider is null for event {EventId} with FTCEvents key {FTCEventsKey}", evt.Id, evt.Code);
-                        continue;
-                    }
-                    for (int i = 0; i < streams.Count; i++)
-                    {
-                        var streamSuffix = $"LS{i + 1}";
-                        var url = provider == "twitch"
-                            ? $"https://player.twitch.tv/?channel={truckRouteData.StreamingConfig.Channel_Id}"
-                            : $"https://youtube.com/embed/{streams[i].internalId}";
-                        var updateSuccess = await oaClient.UpdateEventStream(
-                            toaEventKey,
-                            streams[i].streamName,
-                            streams[i].streamName,
-                            provider,
-                            url,
-                            streams[i].channelUrl,
-                            streams[i].startTime,
-                            streams[i].endTime,
-                            streamSuffix);
-                        if (updateSuccess)
-                        {
-                            logger.LogInformation("Successfully updated event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
-                        }
-                        else
-                        {
-                            logger.LogError("Failed to update event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
-                        }
-                    }
-                }
-            }
-
-            if (streams.Any())
-            {
-                try
-                {
-
-                    streams.ForEach(s =>
-                        {
-                            // Don't push database record if this is an update
-                            if (s.isUpdate)
-                            {
-                                return;
-                            }
-                            var dbStream = new EventStream
-                            {
-                                EventId = evt.Id,
-                                Channel = s.channelUrl,
-                                InternalId = s.internalId,
-                                Platform = provider == "twitch" ? Models.Enums.StreamPlatform.Twitch : Models.Enums.StreamPlatform.Youtube,
-                                Title = s.streamName,
-                                Url = s.embedUrl,
-                                StartTime = s.startTime,
-                                EndTime = s.endTime
-                            };
-
-                            dataContext.EventStreams?.Add(dbStream);
-                        }
-                    );
-
-                    await dataContext.SaveChangesAsync();
-                    logger.LogInformation("Inserted {Count} EventStream record(s) for event {EventId}", streams.Count, evt.Id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to insert EventStream records for event {EventId}", evt.Id);
+                        EmbedUrl = $"https://player.twitch.tv/?channel={routeStreamConfig.Channel_Id}",
+                        ChannelUrl = $"https://www.twitch.tv/{routeStreamConfig.Channel_Id}",
+                        StreamName = $"{prefix} {evt.Name}",
+                        StartTime = evt.StartTime,
+                        EndTime = evt.EndTime,
+                        InternalId = routeStreamConfig.Channel_Id,
+                        IsUpdate = false
+                    });
                 }
             }
         }
+        else if (provider == StreamPlatform.Youtube)
+        {
+            logger.LogInformation("Creating YouTube event stream for event {EventId}", evt.Id);
+            var youtubeService = services.GetService<YoutubeService>();
+            var thumbnailService = services.GetService<ThumbnailService>();
+
+            // Get all livestreams that exist for the current event
+            var existingStreams = await dataContext.EventStreams
+                .Where(es => es.EventId == evt.Id && es.Platform == StreamPlatform.Youtube)
+                .ToListAsync(ct);
+            if (youtubeService != null && thumbnailService != null)
+            {
+                logger.LogInformation(
+                    "YouTubeService and ThumbnailService available; proceeding to create YouTube stream for event {EventId}",
+                    evt.Id);
+                try
+                {
+                    // Count number of days that the event is going on
+                    var eventDuration = Math.Ceiling((evt.EndTime - evt.StartTime).TotalDays) - 2; // -1 day for "buffer" day, -1 because math is hard.
+                    var acctId = routeStreamConfig.Channel_Id!;
+
+                    logger.LogInformation("YouTube account ID for event {EventId} is {AcctId}", evt.Id, acctId);
+                    logger.LogInformation("Event {EventId} duration is {EventDuration} days", evt.Id, eventDuration);
+
+                    // List of streams to be created
+                    var youtubeStreams = new List<YoutubeIngestionInfo>();
+
+                    // Create the streams
+                    for (var day = 0; day <= eventDuration; day++)
+                    {
+                        var dayName = eventDuration > 0 ? (day == 0 ? "Practice Day" : $"Day {day}") : "";
+                        var daySuffix = !string.IsNullOrEmpty(dayName) ? $" - {dayName}" : "";
+                        var streamDate = evt.StartTime.AddDays(day + 1);
+                        var streamTitle = $"{prefix} {evt.Name}{daySuffix}";
+                        var thumbnail = await thumbnailService.DrawThumbnailAsync(program,
+                            $"{evt.StartTime:yyyy} {program}", evt.Name, dayName);
+
+                        logger.LogInformation(
+                            "Creating YouTube stream for event {EventId} on day {Day} with title '{StreamTitle}' starting at {StreamDate}",
+                            evt.Id, day, streamTitle, streamDate);
+
+                        // Determine if a stream already exists and we should update, or create new.
+                        // Look for existing streams
+                        var exactExisting = existingStreams != null ?
+                                      existingStreams.FindAll(es =>
+                                          (es.Title != null && es.Title.EndsWith(daySuffix, StringComparison.OrdinalIgnoreCase))
+                                          || DateTimeOffset.Compare(es.StartTime, streamDate) == 0)
+                                          : [];
+
+                        // 1. Stream exists if eventDuration is 0 and there is 1 existing stream
+                        var exists1 = existingStreams != null &&
+                                      eventDuration == 0 &&
+                                      existingStreams.Count == 1;
+                        // 2. Look for stream with identical suffixes or start dates
+                        var exists2 = existingStreams != null && exactExisting.Count > 0;
+
+                        YoutubeIngestionInfo? youtubeStream;
+                        if (exists1 || exists2)
+                        {
+                            logger.LogInformation(
+                                "Existing YouTube stream found for event {EventId} on day {Day}; updating stream",
+                                evt.Id, day);
+
+                            // Choose DB record to update
+                            var existingToUpdate = exactExisting.FirstOrDefault();
+
+                            if (existingToUpdate != null && !string.IsNullOrWhiteSpace(existingToUpdate.InternalId))
+                            {
+                                youtubeStream = await youtubeService.UpdateExistingLiveStreamAsync(acctId,
+                                    existingToUpdate.InternalId, streamTitle, description ?? string.Empty, streamDate,
+                                    thumbnail, ct);
+
+                                // Update the db
+                                if (youtubeStream != null && dataContext.EventStreams != null)
+                                {
+                                    try
+                                    {
+                                        await dataContext.EventStreams.Where(es => es.Id == existingToUpdate.Id)
+                                            .ExecuteUpdateAsync(s =>
+                                                    s.SetProperty(e => e.Title, streamTitle)
+                                                        .SetProperty(e => e.StartTime, streamDate)
+                                                        // TODO: we should put together StreamInfos first so we can ensure consistency
+                                                        .SetProperty(e => e.EndTime, streamDate.AddDays(1))
+                                                        .SetProperty(e => e.Url,
+                                                            $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}"),
+                                                cancellationToken: ct);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        logger.LogError(ex,
+                                            "Failed to update EventStream record {EventStreamId} for event {EventId}",
+                                            existingToUpdate.Id, evt.Id);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                logger.LogInformation(
+                                    "Could not resolve broadcast id for existing stream; creating new stream instead for event {EventId} day {Day}",
+                                    evt.Id, day);
+                                youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle,
+                                    description ?? string.Empty, streamDate, thumbnail, cancellationToken: ct);
+                            }
+                        }
+                        else
+                        {
+                            // We can't create a stream that starts earlier than the current time.  If the stream is BEFORE TODAY, we'll just ignore it.
+                            // If the stream is for TODAY, we'll just set the start time to the nearest hour in the future.
+                            if (streamDate < DateTime.UtcNow)
+                            {
+                                if (streamDate.Date < DateTime.UtcNow.Date)
+                                {
+                                    logger.LogInformation(
+                                        "Skipping creation of YouTube stream for event {EventId} on day {Day} since start time {StreamDate} is in the past",
+                                        evt.Id, day, streamDate);
+                                    continue;
+                                }
+
+                                // set to nearest hour in future
+                                var now = DateTime.UtcNow;
+                                streamDate = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc).AddHours(1);
+                                logger.LogInformation(
+                                    "Adjusting YouTube stream start time for event {EventId} on day {Day} to nearest hour in future: {StreamDate}",
+                                    evt.Id, day, streamDate);
+                            }
+                            logger.LogInformation("No existing YouTube stream found for event {EventId} on day {Day}; creating new stream", evt.Id, day);
+                            youtubeStream = await youtubeService.CreateNewLiveStreamAsync(acctId, streamTitle,
+                                description ?? string.Empty, streamDate, thumbnail, cancellationToken: ct);
+                        }
+
+                        if (youtubeStream != null)
+                        {
+                            youtubeStreams.Add(youtubeStream);
+                            streams.Add(new StreamInfo
+                            {
+                                EmbedUrl = $"https://www.youtube.com/embed/{youtubeStream.BroadcastId}",
+                                ChannelUrl = $"https://www.youtube.com/channel/{youtubeStream.ChannelId}",
+                                StreamName = streamTitle,
+                                StartTime = streamDate,
+                                EndTime = streamDate.AddHours(24),
+                                InternalId = youtubeStream.BroadcastId,
+                                IsUpdate = exists1 || exists2
+                            });
+                        }
+                    }
+                    
+                    var firstStream = youtubeStreams.FirstOrDefault();
+                    if (firstStream != null)
+                    {
+                        // Use the ingestion address as the RTMP URL and the stream name as the key
+                        rtmpUrl = firstStream.RtmpIngestionAddress;
+                        streamKey = firstStream.StreamName;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error while creating YouTube stream(s) for event {EventId}", evt.Id);
+                }
+            }
+            else
+            {
+                logger.LogError(
+                    "Cannot create YouTube stream for event {EvtId}. Missing YoutubeService or ThumbnailService.",
+                    evt.Id);
+            }
+        }
+
+        // Update stream key if it is not empty
+        if (!string.IsNullOrEmpty(streamKey))
+        {
+            // get the first av cart that is assigned to this route
+            var cart = dataContext.AvCarts.FirstOrDefault(e => e.TruckRouteId == evt.TruckRoute.Id);
+            if (cart != null)
+            {
+                cart.SetFirstStreamInfo(rtmpUrl, streamKey);
+                await dataContext.SaveChangesAsync(ct);
+            }
+        }
+
+        if (streams.Any() && !string.IsNullOrEmpty(evt.Code) && evt.SyncSource == DataSources.FtcEvents)
+        {
+            var oaClient = services.GetService<OrangeAllianceDataClient>();
+            if (oaClient != null)
+            {
+                // Attempt to find the TOA event key
+                var toaEventKey = await oaClient.GetEventKeyFromFTCEventsKey(evt.Code);
+                if (string.IsNullOrEmpty(toaEventKey))
+                {
+                    logger.LogWarning("Could not find TOA event key for event {EventId} with FTCEvents key {FTCEventsKey}", evt.Id, evt.Code);
+                    return;
+                }
+                // Update the event stream
+                foreach (var (idx, stream) in streams.Index())
+                {
+                    var streamSuffix = $"LS{idx + 1}";
+                    
+                    var updateSuccess = await oaClient.UpdateEventStream(
+                        toaEventKey,
+                        stream.StreamName,
+                        stream.StreamName,
+                        provider,
+                        stream.EmbedUrl,
+                        stream.ChannelUrl,
+                        stream.StartTime,
+                        stream.EndTime,
+                        streamSuffix);
+                    if (updateSuccess)
+                    {
+                        logger.LogInformation("Successfully updated event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
+                    }
+                    else
+                    {
+                        logger.LogError("Failed to update event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
+                    }
+                }
+            }
+        }
+
+        if (streams.Any())
+        {
+            try
+            {
+
+                streams.ForEach(s =>
+                    {
+                        // Don't push database record if this is an update
+                        if (s.IsUpdate)
+                        {
+                            return;
+                        }
+                        var dbStream = new EventStream
+                        {
+                            EventId = evt.Id,
+                            Channel = s.ChannelUrl,
+                            InternalId = s.InternalId,
+                            Platform = provider,
+                            Title = s.StreamName,
+                            Url = s.EmbedUrl,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime
+                        };
+
+                        dataContext.EventStreams?.Add(dbStream);
+                    }
+                );
+
+                await dataContext.SaveChangesAsync(ct);
+                logger.LogInformation("Inserted {Count} EventStream record(s) for event {EventId}", streams.Count, evt.Id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to insert EventStream records for event {EventId}", evt.Id);
+            }
+        }
+    }
+    
+    public async Task CreateEventStreams(Event[] events)
+    {
+        await Parallel.ForEachAsync(events, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = 4
+        }, async (evt, ct) => await CreateEventStreamFromRoute(evt, ct));
     }
 
     /// <summary>
@@ -425,8 +436,8 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
                         }
 
                         // Find the event -> truck route -> streaming config to get account email
-                        evt = dataContext.Events?.FirstOrDefault(e => e.Id == stream.EventId);
-                        if (evt == null || evt.TruckRouteId == null)
+                        evt = dataContext.Events.FirstOrDefault(e => e.Id == stream.EventId);
+                        if (evt?.TruckRouteId == null)
                         {
                             logger.LogError("Could not resolve Event or TruckRoute for EventStream {StreamId}; cannot delete YouTube broadcast", eventStreamId);
                             return false;
@@ -529,11 +540,11 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
 
 public class StreamInfo
 {
-    public required string embedUrl { get; set; }
-    public required string channelUrl { get; set; }
-    public required string streamName { get; set; }
-    public required DateTime startTime { get; set; }
-    public required DateTime endTime { get; set; }
-    public required string? internalId { get; set; }
-    public required bool isUpdate { get; set; }
+    public required string EmbedUrl { get; set; }
+    public required string ChannelUrl { get; set; }
+    public required string StreamName { get; set; }
+    public required DateTime StartTime { get; set; }
+    public required DateTime EndTime { get; set; }
+    public required string? InternalId { get; set; }
+    public required bool IsUpdate { get; set; }
 }

@@ -282,6 +282,7 @@ public class FrcEventsDataClient : RestClient, IDataClient
             WebUrlType.Home => baseUrl,
             WebUrlType.QualSchedule => $"{baseUrl}/qualifications",
             WebUrlType.PlayoffSchedule => $"{baseUrl}/playoffs",
+            WebUrlType.ShortLink => baseUrl.Replace("https://frc-events.firstinspires.org", "frc.events"),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }

@@ -2,10 +2,11 @@ using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Models.Models;
+using FiMAdminApi.Repositories;
 
 namespace FiMAdminApi.EventSync;
 
-public class EventSyncService(DataContext dbContext, IServiceProvider services, ILogger<EventSyncService> logger)
+public class EventSyncService(DataContext dbContext, EventRepository eventRepo, IServiceProvider services, ILogger<EventSyncService> logger)
 {
     /// <summary>
     /// Attempt to run <see cref="EventSyncStep"/>s against an event until the status of the event stabilizes. A given
@@ -50,6 +51,7 @@ public class EventSyncService(DataContext dbContext, IServiceProvider services, 
             }
         } while (runAgain);
 
+        await eventRepo.UpdateEvent(evt, false);
         await dbContext.SaveChangesAsync();
 
         return new EventSyncResult(true);

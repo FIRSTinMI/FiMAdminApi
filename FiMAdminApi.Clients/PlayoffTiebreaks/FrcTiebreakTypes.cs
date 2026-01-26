@@ -2,8 +2,6 @@ using System.ComponentModel;
 
 namespace FiMAdminApi.Clients.PlayoffTiebreaks;
 
-// source: uhhhhhhhhhh it fell off the back of a truck
-
 internal enum AllianceType
 {
     None = 0,

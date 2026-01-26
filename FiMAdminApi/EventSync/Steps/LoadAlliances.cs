@@ -1,12 +1,13 @@
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.EventSync.Steps;
 
-public class LoadAlliances(DataContext dbContext)
+public class LoadAlliances(DataContext dbContext, FrcFirebaseRepository firebaseRepository)
     : EventSyncStep([EventStatus.AwaitingAlliances])
 {
     public override async Task RunStep(Event evt, IDataClient eventDataClient)
@@ -35,6 +36,8 @@ public class LoadAlliances(DataContext dbContext)
             var apiAlliance = alliances.FirstOrDefault(a => a.Name == dbAlliance.Name);
             dbAlliance.TeamNumbers = apiAlliance?.TeamNumbers.ToArray();
         }
+
+        await firebaseRepository.UpdateEventAlliances(evt, dbContext.Alliances.Local.ToList());
         
         if (alliances.All(a => a.TeamNumbers.Count > 0))
             evt.Status = EventStatus.AwaitingPlayoffs;

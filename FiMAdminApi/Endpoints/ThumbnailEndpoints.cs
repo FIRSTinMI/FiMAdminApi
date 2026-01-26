@@ -1,4 +1,5 @@
 using Asp.Versioning.Builder;
+using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +10,8 @@ public static class ThumbnailEndpoints
     public static WebApplication RegisterThumbnailEndpoints(this WebApplication app, ApiVersionSet vs)
     {
         var routeGroup = app.MapGroup("/api/v{apiVersion:apiVersion}/thumbnail")
-            .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Thumbnails");
+            .WithApiVersionSet(vs).HasApiVersion(1).WithTags("Thumbnails")
+            .RequireAuthorization(nameof(GlobalPermission.Equipment_Av_ManageStream));
 
         routeGroup.MapGet("", GetThumbnail)
             .WithSummary("Generate a thumbnail PNG for testing")
