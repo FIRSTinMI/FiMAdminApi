@@ -23,7 +23,7 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
 
         // skip if no streaming config
         var routeStreamConfig = evt.TruckRoute.StreamingConfig;
-        if (routeStreamConfig == null)
+        if (routeStreamConfig?.Channel_Type == null)
         {
             logger.LogWarning(
                 "Truck route {TruckRouteId} has no streaming config for event {EventId}; skipping stream creation",
@@ -44,7 +44,7 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
         var streamKey = string.Empty;
         var rtmpUrl = string.Empty;
         var streams = new List<StreamInfo>();
-        var provider = routeStreamConfig.Channel_Type;
+        var provider = routeStreamConfig.Channel_Type.Value;
 
         var description = evt.GetWebUrl(WebUrlType.Home);
         var descriptionShort = $" {evt.GetWebUrl(WebUrlType.ShortLink)}";

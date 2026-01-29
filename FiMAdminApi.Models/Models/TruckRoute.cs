@@ -9,7 +9,7 @@ public class StreamingConfig
 {
     // ReSharper disable InconsistentNaming
     public string? Channel_Id { get; set; }
-    public StreamPlatform Channel_Type { get; set; }
+    public StreamPlatform? Channel_Type { get; set; }
     // ReSharper restore InconsistentNaming
 }
 
