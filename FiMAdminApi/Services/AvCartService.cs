@@ -1,9 +1,31 @@
+using System.Net;
+using System.Text.Json;
 using softaware.Authentication.Hmac.Client;
 
 namespace FiMAdminApi.Services;
 
 public class AvCartService(IHttpClientFactory httpClientFactory, ILogger<AvCartService> logger)
 {
+    public async Task<string?> GetVmixConfig(Guid equipmentId)
+    {
+        var httpClient = httpClientFactory.CreateClient("AvCartHttpClient");
+
+        var resp = await httpClient.GetAsync($"Assistant/VmixConfig/{equipmentId.ToString()}");
+
+        resp.EnsureSuccessStatusCode();
+
+        if (resp.StatusCode == HttpStatusCode.NoContent) return null;
+
+        var respEl = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
+
+        if (respEl.RootElement.ValueKind == JsonValueKind.String)
+        {
+            respEl = JsonDocument.Parse(respEl.RootElement.GetString()!);
+        }
+            
+        return respEl.RootElement.ToString();
+    }
+    
     public async Task StartStream(Guid equipmentId, int? streamNum)
     {
         logger.LogInformation("Starting {stream} for cart {equipmentId}",

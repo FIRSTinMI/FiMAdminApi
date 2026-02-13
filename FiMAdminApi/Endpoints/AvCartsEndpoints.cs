@@ -20,12 +20,26 @@ public static class AvCartsEndpoints
             .WithTags("AV Carts").WithApiVersionSet(vs).HasApiVersion(1)
             .RequireAuthorization(nameof(GlobalPermission.Equipment_Av_ManageStream));
 
+        matchesGroup.MapGet("/{cartId:guid:required}/vmix-config", GetVmixConfig);
         matchesGroup.MapPut("/{cartId:guid:required}/stream-info", UpdateStreamInfo);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/start", StartStream);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/stop", StopStream);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/push-keys", PushStreamKeys);
 
         return app;
+    }
+    
+    private static async Task<Results<Ok<string>, NoContent>> GetVmixConfig(
+        [FromRoute] Guid cartId,
+        [FromServices] AvCartService service,
+        HttpContext httpContext)
+    {
+        var resp = await service.GetVmixConfig(cartId);
+
+        if (resp == null) return TypedResults.NoContent();
+
+        httpContext.Response.ContentType = "text/json";
+        return TypedResults.Ok(resp);
     }
 
     private static async Task<Results<Ok, NotFound, ForbidHttpResult>> UpdateStreamInfo([FromRoute] Guid cartId,
