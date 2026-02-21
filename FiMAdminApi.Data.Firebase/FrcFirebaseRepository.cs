@@ -204,7 +204,7 @@ public class FrcFirebaseRepository(DataContext dataContext, IConfiguration confi
         var allianceDict = alliances.ToDictionary(a => a.Id,
             a => int.TryParse(a.Name.Split()[^1], out var aNum) ? aNum : (int?)null);
 
-        var fbMatches = nonFinals.ToDictionary(m => m.MatchNumber.ToString(), m => DbMatchToFbMatch(m, allianceDict));
+        var fbMatches = nonFinals.ToDictionary(m => m.MatchNumber.ToString(), m => DbMatchToFbMatch(m, allianceDict, m.Winner));
         if (finals.Count > 0)
         {
             
@@ -217,7 +217,7 @@ public class FrcFirebaseRepository(DataContext dataContext, IConfiguration confi
         await firebaseClient.Child($"seasons/{evt.Season.StartTime.Year}/bracket/{evt.Key}").PutAsync(json);
     }
     
-    private static FirebaseMatch DbMatchToFbMatch(Match match, Dictionary<long, int?>? alliances = null, MatchWinner? overrideWinner = null)
+    private static FirebaseMatch DbMatchToFbMatch(Match match, Dictionary<long, int?>? alliances = null, MatchWinner? winner = null)
     {
         return new FirebaseMatch
         {
@@ -230,7 +230,7 @@ public class FrcFirebaseRepository(DataContext dataContext, IConfiguration confi
             ]),
             RedAlliance = alliances?.GetValueOrDefault(match.RedAllianceId ?? -1), // lazy shortcut, -1 shouldn't happen
             BlueAlliance = alliances?.GetValueOrDefault(match.BlueAllianceId ?? -1),
-            Winner = (overrideWinner ?? match.Winner) switch
+            Winner = winner switch
             {
                 MatchWinner.Red => "red",
                 MatchWinner.Blue => "blue",
