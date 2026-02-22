@@ -337,7 +337,18 @@ public class FrcEventsDataClient : RestClient, IDataClient
                 City = evt.City,
                 StartTime = new DateTimeOffset(evt.DateStart, timeZone.GetUtcOffset(evt.DateStart)),
                 EndTime = new DateTimeOffset(evt.DateEnd, timeZone.GetUtcOffset(evt.DateEnd)),
-                TimeZone = timeZone
+                TimeZone = timeZone,
+                Webcasts = evt.Webcasts.Select(w =>
+                {
+                    var streamPlatform = w.Provider switch
+                    {
+                        "Youtube" => StreamPlatform.Youtube,
+                        "Twitch" => StreamPlatform.Twitch,
+                        _ => throw new ArgumentException($"Got bad provider for webcast {w.Provider}")
+                    };
+                    return new WebcastInfo(w.Link, w.Date, streamPlatform,
+                        streamPlatform == StreamPlatform.Twitch ? w.Channel : w.Slug, w.Channel);
+                }).ToArray()
             };
         });
     }

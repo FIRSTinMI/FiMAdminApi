@@ -9,4 +9,5 @@ public class Event
     public DateTimeOffset StartTime { get; set; }
     public DateTimeOffset EndTime { get; set; }
     public required TimeZoneInfo TimeZone { get; set; }
+    public WebcastInfo[] Webcasts { get; set; }
 }
