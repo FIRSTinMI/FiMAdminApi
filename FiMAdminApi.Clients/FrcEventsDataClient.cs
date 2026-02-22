@@ -259,8 +259,9 @@ public class FrcEventsDataClient : RestClient, IDataClient
 
     public async Task<List<Award>> GetAwardsForEvent(FiMAdminApi.Models.Models.Event evt)
     {
+        // forcing v3.0 because endpoint is broken in 3.3. revisit after next minor api revision
         var resp = await PerformRequest(
-            BuildGetRequest($"{GetSeason(evt.Season!)}/awards/event/{evt.Code}"));
+            BuildGetRequest($"{GetSeason(evt.Season!)}/awards/event/{evt.Code}", version: "3.0"));
         resp.EnsureSuccessStatusCode();
         var json = await resp.Content.ReadFromJsonAsync(FrcEventsJsonSerializerContext.Default.GetAwards) ??
                    throw new MissingDataException("Unable to parse FrcEvents awards response");
@@ -390,7 +391,7 @@ public class FrcEventsDataClient : RestClient, IDataClient
     /// <summary>
     /// Creates a request which encodes all user-provided values
     /// </summary>
-    private HttpRequestMessage BuildGetRequest(FormattableString endpoint, Dictionary<string, string>? queryParams = null)
+    private HttpRequestMessage BuildGetRequest(FormattableString endpoint, Dictionary<string, string>? queryParams = null, string version = "3.3")
     {
         var request = new HttpRequestMessage();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
@@ -398,7 +399,7 @@ public class FrcEventsDataClient : RestClient, IDataClient
             new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(_apiKey)));
 
         var relativeUri =
-            $"{endpoint.EncodeString(Uri.EscapeDataString)}{(queryParams is not null && queryParams.Count > 0 ? QueryString.Create(queryParams) : "")}";
+            $"v{version}/{endpoint.EncodeString(Uri.EscapeDataString)}{(queryParams is not null && queryParams.Count > 0 ? QueryString.Create(queryParams) : "")}";
 
         if (relativeUri.StartsWith('/'))
             throw new ArgumentException("Endpoint must be a relative path", nameof(endpoint));
