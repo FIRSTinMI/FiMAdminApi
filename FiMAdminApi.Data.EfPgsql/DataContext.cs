@@ -64,10 +64,7 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
         
         modelBuilder.Entity<TruckRoute>(entity =>
         {
-            entity.OwnsOne(t => t.StreamingConfig, builder =>
-            {
-                builder.ToJson();
-            });
+            entity.ComplexProperty(t => t.StreamingConfig, c => c.ToJson());
         });
     }
 }

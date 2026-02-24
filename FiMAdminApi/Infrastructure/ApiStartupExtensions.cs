@@ -25,7 +25,7 @@ public static class ApiStartupExtensions
 
         services.AddOpenApi(opt =>
         {
-            opt.AddDocumentTransformer((doc, _, _) =>
+            opt.AddDocumentTransformer((doc, ctx, _) =>
             {
                 doc.Info = new OpenApiInfo
                 {
@@ -34,6 +34,18 @@ public static class ApiStartupExtensions
                         "A collection of endpoints that require more stringent authorization or business logic. Most read functionality should be handled by going directly to Supabase.",
                     Version = "v1"
                 };
+
+                var baseUrl = ctx.ApplicationServices.GetRequiredService<IConfiguration>()["BaseUrl"];
+                if (!string.IsNullOrEmpty(baseUrl))
+                {
+                    doc.Servers =
+                    [
+                        new OpenApiServer
+                        {
+                            Url = baseUrl
+                        }
+                    ];
+                }
                 return Task.CompletedTask;
             });
             opt.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
