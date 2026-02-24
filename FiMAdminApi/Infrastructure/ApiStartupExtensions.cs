@@ -2,7 +2,7 @@ using System.Net.Mime;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace FiMAdminApi.Infrastructure;
 
@@ -89,16 +89,16 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
         if (authenticationSchemes.Any(authScheme => authScheme.Name == "Bearer"))
         {
             // Add the security scheme at the document level
-            var requirements = new Dictionary<string, OpenApiSecurityScheme>
+            var requirements = new Dictionary<string, IOpenApiSecurityScheme>
             {
                 ["Bearer"] = new OpenApiSecurityScheme
                 {
                     Type = SecuritySchemeType.Http,
-                    Scheme = "bearer", // "bearer" refers to the header name here
+                    Scheme = "bearer",
                     In = ParameterLocation.Header,
                     BearerFormat = "Json Web Token"
                 },
-                ["Sync Secret"] = new OpenApiSecurityScheme()
+                ["Sync Secret"] = new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
                     Name = "X-fim-sync-secret",
@@ -107,14 +107,17 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
             };
             document.Components ??= new OpenApiComponents();
             document.Components.SecuritySchemes = requirements;
-
+            
             // Apply it as a requirement for all operations
-            foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations))
+            foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations ?? []))
             {
+                var referenceId = operation.Value.Tags?.Any(t => t.Name == "Event Sync") == true
+                    ? "Sync Secret"
+                    : "Bearer";
+                operation.Value.Security ??= new List<OpenApiSecurityRequirement>();
                 operation.Value.Security.Add(new OpenApiSecurityRequirement
                 {
-                    [new OpenApiSecurityScheme { Reference = new OpenApiReference { Id = operation.Value.Tags.Any(t => t.Name == "Event Sync") ? "Sync Secret" : "Bearer", Type = ReferenceType.SecurityScheme } }] =
-                        Array.Empty<string>()
+                    [new OpenApiSecuritySchemeReference(referenceId, document)] = []
                 });
             }
         }

@@ -29,7 +29,7 @@ public class InitialSync(EventPublisher eventPublisher, DataContext dbContext) :
         if (evt.Season is null || string.IsNullOrEmpty(evt.Code)) return;
         
         var eventInfo = await dataClient.GetEventAsync(evt.Season, evt.Code);
-        if (eventInfo is null || eventInfo.Webcasts.Length == 0) return;
+        if (eventInfo?.Webcasts is null || eventInfo.Webcasts.Length == 0) return;
 
         var dbStreams = await dbContext.EventStreams.Where(s => s.EventId == evt.Id).ToListAsync();
 

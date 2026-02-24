@@ -19,18 +19,11 @@ public class BlueAllianceWriteClient : RestClient
     private readonly string _authId;
     private readonly string _authSecret;
     private readonly Uri _baseUrl;
-    private readonly HttpClient _httpClient;
-
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
-    };
 
     public BlueAllianceWriteClient(IServiceProvider sp)
         : base(
             sp.GetRequiredService<ILogger<BlueAllianceWriteClient>>(),
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient(DataSources.BlueAlliance.ToString()))
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(DataSources.BlueAlliance)))
     {
         var configSection = sp.GetRequiredService<IConfiguration>().GetRequiredSection("Clients:BlueAllianceWrite");
         
@@ -49,7 +42,7 @@ public class BlueAllianceWriteClient : RestClient
             throw new ApplicationException("BlueAllianceWrite BaseUrl was null but is required");
         _baseUrl = new Uri(baseUrl);
         
-        _httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance");
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance");
     }
 
     public async Task UpdateEventInfo(Season season, string eventCode, WebcastInfo[] webcastInfo)
