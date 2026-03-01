@@ -70,7 +70,7 @@ public class SetEquipmentSlackProfile(DataContext dbContext, SlackService slackS
 
 internal partial class SetEquipmentSlackProfileRegexes
 {
-    [GeneratedRegex("^FIM District (.*) Event$")]
+    [GeneratedRegex("^FIM District (.*) Event")]
     public static partial Regex FimDistrict();
     
     [GeneratedRegex("^Michigan State Championship ?- ?(.*) Division$")]
