@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using FiMAdminApi.Clients;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;

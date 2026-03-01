@@ -46,19 +46,10 @@ public class FrcFirebaseRepository(DataContext dataContext, IConfiguration confi
             : null;
 
         string? streamUrl = null;
-        var urlTemplate = config["EventStream:TwitchEmbedTemplate"];
+        var urlTemplate = config["EventStream:StreamEmbedTemplate"];
         if (!string.IsNullOrEmpty(urlTemplate) && evt.TruckRouteId is not null)
         {
-            var routeName = await dataContext.TruckRoutes.Where(r => r.Id == evt.TruckRouteId).Select(r => r.Name)
-                .FirstOrDefaultAsync();
-            if (routeName is not null)
-            {
-                var routeNumberMatch = FirebaseRepoRegexes.RouteNumberRegex.Match(routeName);
-                if (routeNumberMatch.Success)
-                {
-                    streamUrl = string.Format(urlTemplate, routeNumberMatch.Value);
-                }
-            }
+            streamUrl = string.Format(urlTemplate, evt.Season.StartTime.Year, evt.Code);
         }
         
         var json = JsonSerializer.Serialize(new FirebaseEvent
@@ -239,10 +230,4 @@ public class FrcFirebaseRepository(DataContext dataContext, IConfiguration confi
             }
         };
     }
-}
-
-public static partial class FirebaseRepoRegexes
-{
-    [GeneratedRegex(@"(?<num>\d+)$")]
-    public static partial Regex RouteNumberRegex { get; }
 }

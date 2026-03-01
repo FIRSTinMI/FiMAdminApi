@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Mime;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication;
@@ -49,6 +50,18 @@ public static class ApiStartupExtensions
                 return Task.CompletedTask;
             });
             opt.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            
+            // Stoplight won't render an "upload file" UI unless the contentMediaType is set
+            opt.AddSchemaTransformer((schema, context, _) =>
+            {
+                if (context.JsonTypeInfo.Type != typeof(IFormFile)) return Task.CompletedTask;
+                
+                schema.Type = JsonSchemaType.String;
+                schema.Format = "binary";
+                schema.Extensions ??= new ConcurrentDictionary<string, IOpenApiExtension>();
+                schema.Extensions["contentMediaType"] = new JsonNodeExtension("application/octet-stream");
+                return Task.CompletedTask;
+            });
         });
 
         return services;

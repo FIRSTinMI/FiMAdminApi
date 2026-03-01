@@ -43,10 +43,19 @@ public class SetEquipmentSlackProfile(DataContext dbContext, SlackService slackS
     private static string CleanEventName(string name)
     {
         name = name.Replace(" Qualifier", "");
+
+        name = SetEquipmentSlackProfileRegexes.PresentedBy().Replace(name, string.Empty);
+        
         var fimDistrictMatch = SetEquipmentSlackProfileRegexes.FimDistrict().Match(name);
         if (fimDistrictMatch.Success)
         {
             name = fimDistrictMatch.Groups[1].Value;
+            if (fimDistrictMatch.Groups[2].Success && !string.IsNullOrWhiteSpace(fimDistrictMatch.Groups[2].Value))
+            {
+                // E.g., the "#2" in "...Troy Event #2 presented by..."
+                name += $" {fimDistrictMatch.Groups[2].Value}";
+                name = name.Trim();
+            }
         }
         var fimChampMatch = SetEquipmentSlackProfileRegexes.FimChampDivision().Match(name);
         if (fimChampMatch.Success)
@@ -70,10 +79,13 @@ public class SetEquipmentSlackProfile(DataContext dbContext, SlackService slackS
 
 internal partial class SetEquipmentSlackProfileRegexes
 {
-    [GeneratedRegex("^FIM District (.*) Event")]
+    [GeneratedRegex("presented by (?:.*)$", RegexOptions.IgnoreCase)]
+    public static partial Regex PresentedBy();
+    
+    [GeneratedRegex("^FIM District (.*) Event(.*)?")]
     public static partial Regex FimDistrict();
     
-    [GeneratedRegex("^Michigan State Championship ?- ?(.*) Division$")]
+    [GeneratedRegex("^(?:FIRST in )?Michigan State Championship ?- ?(.*) Division$")]
     public static partial Regex FimChampDivision();
 
     [GeneratedRegex("(\\d+)$")]
