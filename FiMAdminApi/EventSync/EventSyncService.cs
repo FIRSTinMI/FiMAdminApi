@@ -1,5 +1,4 @@
 using FiMAdminApi.Clients;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Models.Models;
 using FiMAdminApi.Repositories;

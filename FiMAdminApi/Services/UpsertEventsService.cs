@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.Services;
 
-public class UpsertEventsService(DataContext context, IServiceProvider services)
+public class UpsertEventsService(DataContext context, IServiceProvider services, EventStreamService streamService)
 {
     private static readonly Random Random = new();
     
@@ -82,7 +82,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
             }
             else
             {
-                var newEvent = new Event
+                dbEvent = new Event
                 {
                     Id = Guid.NewGuid(),
                     SeasonId = season.Id,
@@ -97,9 +97,11 @@ public class UpsertEventsService(DataContext context, IServiceProvider services)
                     SyncSource = request.DataSource
                 };
 
-                context.Events.Add(newEvent);
-                response.UpsertedEvents.Add(newEvent);
+                context.Events.Add(dbEvent);
+                response.UpsertedEvents.Add(dbEvent);
             }
+
+            await streamService.SyncEventStreamsFromDataSource(dbEvent, apiEvent);
         }
 
         await context.SaveChangesAsync();

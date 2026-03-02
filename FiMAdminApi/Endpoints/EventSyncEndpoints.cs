@@ -4,12 +4,9 @@ using FiMAdminApi.Auth;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Models.Models;
-using FiMAdminApi.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SlackNet;
-using File = System.IO.File;
 
 namespace FiMAdminApi.Endpoints;
 

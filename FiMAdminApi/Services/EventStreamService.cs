@@ -11,6 +11,64 @@ namespace FiMAdminApi.Services;
 
 public class EventStreamService(DataContext dataContext, IServiceProvider services, ILogger<EventStreamService> logger)
 {
+    /// <summary>
+    /// Pull any livestreams from the datasource into the DB, will not
+    /// overwrite existing streams.
+    ///
+    /// NOTE: Does not save changes to the DB context, do that on your own.
+    /// </summary>
+    public async Task SyncEventStreamsFromDataSource(Event evt, Clients.Models.Event? clientEvent = null)
+    {
+        if (evt.SyncSource is null || evt.Season is null || string.IsNullOrEmpty(evt.Code))
+            throw new ApplicationException("Unable to sync streams without a sync source");
+
+        if (clientEvent is null)
+        {
+            var dataClient = services.GetRequiredKeyedService<IDataClient>(evt.SyncSource);
+            clientEvent = await dataClient.GetEventAsync(evt.Season!, evt.Code);
+
+            if (clientEvent is null) throw new ApplicationException($"Unable to get event {evt.Code} from data source");
+        }
+        
+        if (clientEvent.Webcasts is null || clientEvent.Webcasts.Length == 0) return;
+
+        var dbStreams = await dataContext.EventStreams.Where(s => s.EventId == evt.Id).ToListAsync();
+
+        var streamsToAdd = clientEvent.Webcasts.Where(w => !dbStreams.Any(d =>
+            d.Platform == w.Platform && d.InternalId == w.InternalId && d.Channel == w.Channel)).ToList();
+
+        if (streamsToAdd.Count == 0) return;
+        
+        if (!TimeZoneInfo.TryFindSystemTimeZoneById(evt.TimeZone, out var timeZone))
+            timeZone = TimeZoneInfo.Utc;
+
+        foreach (var stream in streamsToAdd)
+        {
+            var startTime = evt.StartTime;
+            var endTime = evt.EndTime;
+
+            if (stream.Date is not null)
+            {
+                var dateTime = stream.Date.Value.ToDateTime(TimeOnly.MinValue);
+                startTime = new DateTimeOffset(dateTime, timeZone.GetUtcOffset(dateTime)).UtcDateTime;
+                endTime = startTime.AddDays(1).AddSeconds(-1);
+            }
+
+            dataContext.EventStreams.Add(new EventStream
+            {
+                EventId = evt.Id,
+                Title = $"{evt.StartTime.Year} {evt.Name}{(startTime != evt.StartTime ? $" - {startTime.DayOfWeek.ToString()}" : "")}",
+                Primary = true,
+                Platform = stream.Platform,
+                Channel = stream.Channel,
+                Url = stream.Url,
+                InternalId = stream.InternalId,
+                StartTime = startTime,
+                EndTime = endTime
+            });
+        }
+    }
+    
     public async Task CreateEventStreamFromRoute(Event evt, CancellationToken? cancellationToken = null)
     {
         var ct = cancellationToken ?? CancellationToken.None;
