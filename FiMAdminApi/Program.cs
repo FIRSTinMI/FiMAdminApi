@@ -1,9 +1,7 @@
-using System.Diagnostics;
+using System.Text.Json;
 using Asp.Versioning;
-using FiMAdminApi;
 using FiMAdminApi.Auth;
 using FiMAdminApi.Clients;
-using FiMAdminApi.Data;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.Endpoints;
@@ -11,10 +9,9 @@ using FiMAdminApi.EventHandlers;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Infrastructure;
 using FiMAdminApi.Models.Enums;
+using FiMAdminApi.Models.Models;
 using FiMAdminApi.Repositories;
 using FiMAdminApi.Services;
-using Firebase.Database;
-using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -80,6 +77,9 @@ builder.Services.AddDbContext<DataContext>(opt =>
     opt.UseSnakeCaseNamingConvention();
     opt.UseNpgsql(connectionString,
         o => o
+            .ConfigureDataSource(s => s
+                .EnableDynamicJson(jsonClrTypes: [typeof(BaseSponsor)])
+                .ConfigureJsonOptions(new JsonSerializerOptions { AllowOutOfOrderMetadataProperties = true }))
             .MapEnum<TournamentLevel>("tournament_level", nameTranslator: nullNameTranslator)
             .MapEnum<MatchWinner>("match_winner", nameTranslator: nullNameTranslator)
             .MapEnum<StreamPlatform>("stream_platform", nameTranslator: nullNameTranslator));
@@ -174,6 +174,7 @@ app
     .RegisterYoutubeEndpoints(globalVs)
     .RegisterEventStreamEndpoints(globalVs)
     .RegisterSlackBotEndpoints(globalVs)
-    .RegisterThumbnailEndpoints(globalVs);
+    .RegisterThumbnailEndpoints(globalVs)
+    .RegisterSponsorsEndpoints(globalVs);
 
 app.Run();

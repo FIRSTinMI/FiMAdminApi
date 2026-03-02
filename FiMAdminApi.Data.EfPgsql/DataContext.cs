@@ -24,6 +24,8 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
     public DbSet<AvCartEquipment> AvCarts { get; set; }
     public DbSet<EquipmentType> EquipmentTypes { get; init; }
     public DbSet<EventStream> EventStreams { get; init; }
+    public DbSet<EventSponsor> EventSponsors { get; init; }
+    public DbSet<SeasonSponsor> SeasonSponsors { get; init; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -65,6 +67,18 @@ public class DataContext(DbContextOptions<DataContext> options) : DbContext(opti
         modelBuilder.Entity<TruckRoute>(entity =>
         {
             entity.ComplexProperty(t => t.StreamingConfig, c => c.ToJson());
+        });
+
+        modelBuilder.Entity<EventSponsor>(entity =>
+        {
+            entity.HasKey(e => e.EventId);
+            entity.Property(e => e.Sponsors).HasColumnName("sponsor_data").HasColumnType("json");
+        });
+        
+        modelBuilder.Entity<SeasonSponsor>(entity =>
+        {
+            entity.HasKey(e => e.SeasonId);
+            entity.Property(e => e.Sponsors).HasColumnName("sponsor_data").HasColumnType("json");
         });
     }
 }

@@ -45,6 +45,8 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(YoutubeBroadcastStatus[]))]
 [JsonSerializable(typeof(YoutubeIngestionInfo))]
 [JsonSerializable(typeof(GoogleUserInfo))]
+[JsonSerializable(typeof(IFormFile))]
+[JsonSerializable(typeof(BaseSponsor[]))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
