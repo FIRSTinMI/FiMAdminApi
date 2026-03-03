@@ -1,11 +1,12 @@
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.Models.Models;
 using FiMAdminApi.Repositories;
 
 namespace FiMAdminApi.EventSync;
 
-public class EventSyncService(DataContext dbContext, EventRepository eventRepo, IServiceProvider services, ILogger<EventSyncService> logger)
+public class EventSyncService(DataContext dbContext, EventRepository eventRepo, IServiceProvider services, ILogger<EventSyncService> logger, FrcFirebaseRepository firebaseRepo)
 {
     /// <summary>
     /// Attempt to run <see cref="EventSyncStep"/>s against an event until the status of the event stabilizes. A given
@@ -27,6 +28,7 @@ public class EventSyncService(DataContext dbContext, EventRepository eventRepo, 
 
         var syncSteps = services.GetServices<EventSyncStep>().ToList();
         var alreadyRunSteps = new List<Type>();
+        var originalStatus = evt.Status;
 
         bool runAgain; // We want to run until we're able to go a full iteration without running any steps.
         do
@@ -50,7 +52,10 @@ public class EventSyncService(DataContext dbContext, EventRepository eventRepo, 
             }
         } while (runAgain);
 
-        await eventRepo.UpdateEvent(evt, false);
+        // We don't want to bother overwriting the whole event when we don't know that anything changed
+        if (originalStatus != evt.Status)
+            await firebaseRepo.UpdateEvent(evt);
+            
         await dbContext.SaveChangesAsync();
 
         return new EventSyncResult(true);

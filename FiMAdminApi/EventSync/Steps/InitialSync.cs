@@ -11,7 +11,8 @@ public class InitialSync(EventPublisher eventPublisher, DataContext dbContext, E
 {
     public override async Task RunStep(Event evt, IDataClient dataClient)
     {
-        evt.Status = EventStatus.AwaitingQuals;
+        if (evt.Status == EventStatus.NotStarted)
+            evt.Status = EventStatus.AwaitingQuals;
 
         await streamService.SyncEventStreamsFromDataSource(evt);
         await dbContext.SaveChangesAsync();
