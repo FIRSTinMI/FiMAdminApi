@@ -1,13 +1,14 @@
 using System.ComponentModel;
 using FiMAdminApi.Clients;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Data.Firebase;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiMAdminApi.Services;
 
-public class UpsertEventsService(DataContext context, IServiceProvider services, EventStreamService streamService)
+public class UpsertEventsService(DataContext context, IServiceProvider services, EventStreamService streamService, FrcFirebaseRepository firebaseRepo)
 {
     private static readonly Random Random = new();
     
@@ -102,6 +103,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services,
             }
 
             await streamService.SyncEventStreamsFromDataSource(dbEvent, apiEvent);
+            await firebaseRepo.UpdateEvent(dbEvent);
         }
 
         await context.SaveChangesAsync();
@@ -110,7 +112,7 @@ public class UpsertEventsService(DataContext context, IServiceProvider services,
 
     private async Task<Season?> GetAndValidateSeason(int seasonId, UpsertEventsResponse response)
     {
-        var season = await context.Seasons.FindAsync(seasonId);
+        var season = await context.Seasons.Include(s => s.Level).FirstOrDefaultAsync(s => s.Id == seasonId);
         if (season is null)
         {
             response.Errors.Add("Season not found");

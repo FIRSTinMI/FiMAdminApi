@@ -54,7 +54,7 @@ public static class SponsorsEndpoints
             CacheControl = new CacheControlHeaderValue
             {
                 Public = true,
-                MaxAge = TimeSpan.FromDays(1)
+                MaxAge = TimeSpan.FromDays(7)
             }.ToString(),
             Bucket = configuration["Storage:SponsorsBucketName"],
             Name = fileName,
