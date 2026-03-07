@@ -1,4 +1,5 @@
 using FiMAdminApi.EventHandlers.Multiple;
+using FiMAdminApi.EventHandlers.Playoff1ScoresPosted;
 using FiMAdminApi.EventHandlers.Qual1ScoresPosted;
 
 namespace FiMAdminApi.EventHandlers;
@@ -15,6 +16,7 @@ public static class EventHandlersServiceCollectionExtensions
         services.AddTransient<IEventHandler<Events.PlayoffsComplete>, EventAlertsSlackMessage>();
         services.AddTransient<IEventHandler<Events.EventStarted>, SetEquipmentSlackProfile>();
         services.AddTransient<IEventHandler<Events.EventCompleted>, SetEquipmentSlackProfile>();
+        services.AddTransient<IEventHandler<Events.Playoff1ScoresPosted>, AvReportSlackMessage>();
 
         return services;
     }

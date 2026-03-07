@@ -91,4 +91,6 @@ public enum SlackChannel
     AvHqChannel,
     // Public channel for alerts related to the running of an event
     EventAlerts,
+    // Private channel for AV carts only
+    AvPrivate
 }

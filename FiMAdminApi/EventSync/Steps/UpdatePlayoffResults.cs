@@ -75,6 +75,12 @@ public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffRe
                 await dbContext.Matches.AddAsync(newMatch);
                 dbMatch = newMatch;
             }
+            
+            if (dbMatch is { MatchNumber: 1, PlayNumber: 1, PostResultTime: null } &&
+                apiMatch.PostResultTime is not null)
+            {
+                await eventPublisher.Publish(new Playoff1ScoresPosted(evt));
+            }
 
             dbMatch.ScheduledStartTime = apiMatch.ScheduledStartTime;
             dbMatch.ActualStartTime = apiMatch.ActualStartTime;
