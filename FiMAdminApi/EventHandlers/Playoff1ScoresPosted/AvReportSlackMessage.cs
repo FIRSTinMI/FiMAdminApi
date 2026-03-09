@@ -26,7 +26,8 @@ public class AvReportSlackMessage(SlackService slackService, DataContext dbConte
 
         if (equipment.Count == 0) return;
 
-        var message = $":memo: Welcome to playoffs {string.Join(" ", equipment.Select(e => $"<@{e.SlackUserId}>"))}! Please make sure to submit an AV report for your event before you leave for the day, thanks again for volunteering with FIM!";
+        var message =
+            $":memo: Welcome to playoffs {string.Join(" ", equipment.Select(e => $"<@{e.SlackUserId}>"))}! Please make sure to submit an AV report for your event before you leave for the day, thanks again for volunteering with FIM! [{new Uri(reportUrl).GetComponents(UriComponents.HttpRequestUrl ^ UriComponents.Scheme, UriFormat.SafeUnescaped)}]({reportUrl})";
 
         await slackService.SendMessage(SlackChannel.AvPrivate, message, "AV Report", reportUrl);
     }
