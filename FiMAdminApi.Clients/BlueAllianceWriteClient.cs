@@ -14,6 +14,11 @@ using Microsoft.Extensions.Logging;
 
 namespace FiMAdminApi.Clients;
 
+/// <summary>
+/// Trusted TBA API.
+///
+/// <seealso href="https://www.thebluealliance.com/apidocs/trusted/v1">API Documentation</seealso>
+/// </summary>
 public class BlueAllianceWriteClient : RestClient
 {
     private readonly string _authId;
@@ -47,7 +52,7 @@ public class BlueAllianceWriteClient : RestClient
 
     public async Task UpdateEventInfo(Season season, string eventCode, WebcastInfo[] webcastInfo)
     {
-        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/info/update",
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/info/update", HttpMethod.Post, 
             new EventInfoRequest(webcastInfo
                 .Select(w => new EventInfoWebcastInfo(w.Url, w.Date is not null ? $"{w.Date:O}" : null)).ToArray()));
 
@@ -56,15 +61,23 @@ public class BlueAllianceWriteClient : RestClient
 
     public async Task AddMatchVideos(Season season, string eventCode, Dictionary<string, string> videos)
     {
-        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/match_videos/add", videos);
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/match_videos/add", HttpMethod.Post, videos);
 
         var response = await PerformRequest(request);
-        Logger.LogInformation("{}", await response.Content.ReadAsStringAsync());
+
+        response.EnsureSuccessStatusCode();
+    }
+    
+    public async Task RemoveMatchVideos(Season season, string eventCode, Dictionary<string, string> videos)
+    {
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/match_videos/delete", HttpMethod.Delete, videos);
+
+        var response = await PerformRequest(request);
 
         response.EnsureSuccessStatusCode();
     }
 
-    private HttpRequestMessage BuildRequest<TBody>(FormattableString endpoint, TBody body)
+    private HttpRequestMessage BuildRequest<TBody>(FormattableString endpoint, HttpMethod method, TBody body)
     {
         var jsonTypeInfo = BlueAllianceWriteJsonSerializer.Default.GetTypeInfo(typeof(TBody));
         if (jsonTypeInfo is null)
@@ -74,7 +87,7 @@ public class BlueAllianceWriteClient : RestClient
         var relativeUri = endpoint.EncodeString(Uri.EscapeDataString);
 
         var request = new HttpRequestMessage();
-        request.Method = HttpMethod.Post;
+        request.Method = method;
         request.RequestUri = new Uri(_baseUrl, relativeUri);
         request.Headers.Add("X-Tba-Auth-Id", _authId);
         request.Content = new StringContent(serializedBody, new MediaTypeHeaderValue("application/json"));
