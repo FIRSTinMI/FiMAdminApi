@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Auth;
+using FiMAdminApi.Clients;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Models.Enums;
@@ -42,6 +43,8 @@ public static class EventsEndpoints
             .WithDescription("Force refresh event match results and rankings");
         eventsGroup.MapPut("{eventId:guid}/teams/{eventTeamId:int}", UpdateEventTeam)
             .WithDescription("Update event team");
+        eventsGroup.MapGet("{eventId:guid}/missing-match-videos", GetMissingMatchVideos)
+            .WithDescription("Get list of match videos missing from any data sources");
         
         return app;
     }
@@ -317,6 +320,71 @@ public static class EventsEndpoints
         return TypedResults.Ok(eventTeam);
     }
 
+    private static async Task<Results<Ok<MissingMatchVideoDetail[]>, NotFound, NoContent, ForbidHttpResult>> GetMissingMatchVideos(
+        [FromRoute] Guid eventId, [FromServices] DataContext dbContext, [FromServices] IServiceProvider serviceProvider,
+        ClaimsPrincipal user, [FromServices] IAuthorizationService authorizationService)
+    {
+        var evt = await dbContext.Events.Include(e => e.Season).FirstOrDefaultAsync(e => e.Id == eventId);
+        if (evt is null)
+            return TypedResults.NotFound();
+        
+        var isAuthorized = await authorizationService.AuthorizeAsync(user, eventId, new EventAuthorizationRequirement
+        {
+            NeededEventPermission = EventPermission.Event_View,
+            NeededGlobalPermission = GlobalPermission.Equipment_Manage
+        });
+        if (!isAuthorized.Succeeded) return TypedResults.Forbid();
+
+        if (evt.SyncSource is null) return TypedResults.NoContent();
+
+        DataSources[] dataSourcesToCheck = evt.SyncSource switch
+        {
+            DataSources.FrcEvents => [DataSources.FrcEvents, DataSources.BlueAlliance],
+            _ => [evt.SyncSource!.Value]
+        };
+
+        var missingMatches = new Dictionary<(TournamentLevel level, int matchNumber), MissingMatchVideoDetail>();
+
+        foreach (var source in dataSourcesToCheck)
+        {
+            var client = serviceProvider.GetRequiredKeyedService<IDataClient>(source);
+            var quals = await client.GetQualResultsForEvent(evt);
+            var playoffs = await client.GetPlayoffResultsForEvent(evt);
+
+            foreach (var qual in quals.Where(q => q.PostResultTime != null && string.IsNullOrEmpty(q.MatchVideoLink)))
+            {
+                var key = (TournamentLevel.Qualification, qual.MatchNumber);
+                if (missingMatches.TryGetValue(key, out var value))
+                {
+                    value.MissingSources.Add(source);
+                }
+                else
+                {
+                    missingMatches[key] = new MissingMatchVideoDetail(TournamentLevel.Qualification, qual.MatchNumber,
+                        qual.PostResultTime!.Value, [source]);
+                }
+            }
+            
+            foreach (var playoff in playoffs.Where(q => q.PostResultTime != null && string.IsNullOrEmpty(q.MatchVideoLink)))
+            {
+                var key = (TournamentLevel.Playoff, playoff.MatchNumber);
+                if (missingMatches.TryGetValue(key, out var value))
+                {
+                    value.MissingSources.Add(source);
+                }
+                else
+                {
+                    missingMatches[key] = new MissingMatchVideoDetail(TournamentLevel.Playoff, playoff.MatchNumber,
+                        playoff.PostResultTime!.Value, [source]);
+                }
+            }
+        }
+
+        if (missingMatches.Count == 0) return TypedResults.NoContent();
+
+        return TypedResults.Ok(missingMatches.Values.ToArray());
+    }
+
     public class UpdateBasicInfoRequest
     {
         [Required]
@@ -371,4 +439,10 @@ public static class EventsEndpoints
         [MaxLength(4000)]
         public string? Notes { get; set; }
     }
+
+    public record MissingMatchVideoDetail(
+        TournamentLevel Level,
+        int MatchNumber,
+        DateTime PostResultTime,
+        List<DataSources> MissingSources);
 }

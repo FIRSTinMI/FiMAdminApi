@@ -17,6 +17,7 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(EventsEndpoints.UpsertEventStaffRequest))]
 [JsonSerializable(typeof(EventsEndpoints.CreateEventNoteRequest))]
 [JsonSerializable(typeof(EventsEndpoints.UpdateEventTeamRequest))]
+[JsonSerializable(typeof(EventsEndpoints.MissingMatchVideoDetail[]))]
 [JsonSerializable(typeof(User[]))]
 [JsonSerializable(typeof(EventStaff))]
 [JsonSerializable(typeof(EventTeam))]

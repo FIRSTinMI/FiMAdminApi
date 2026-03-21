@@ -1,9 +1,12 @@
 using System.Globalization;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Text.Json;
+using FiMAdminApi.Clients.Exceptions;
 using FiMAdminApi.Clients.Extensions;
 using FiMAdminApi.Clients.Models;
+using FiMAdminApi.Clients.Models.BlueAlliance;
 using FiMAdminApi.Clients.PlayoffTiebreaks;
 using FiMAdminApi.Models.Models;
 using Microsoft.Extensions.Configuration;
@@ -56,11 +59,6 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         return json.RootElement.EnumerateArray().Select(ParseEvent).ToList();
     }
 
-    public Task<List<Team>> GetTeamsByNumbers(Season season, IEnumerable<string> teamNumbers)
-    {
-        throw new NotImplementedException();
-    }
-
     public Task<List<Team>> GetTeamsForEvent(Season season, string eventCode)
     {
         throw new NotImplementedException();
@@ -71,9 +69,25 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         throw new NotImplementedException();
     }
 
-    public Task<List<MatchResult>> GetQualResultsForEvent(FiMAdminApi.Models.Models.Event evt)
+    public async Task<List<MatchResult>> GetQualResultsForEvent(FiMAdminApi.Models.Models.Event evt)
     {
-        throw new NotImplementedException();
+        var resp = await PerformRequest(BuildGetRequest($"event/{GetEventCode(evt.Season, evt.Code)}/matches"));
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadFromJsonAsync(BlueAllianceJsonSerializerContext.Default.GetMatchesArray) ??
+                   throw new MissingDataException("Unable to parse BlueAlliance matches response");
+        
+        return json.Where(m => m.CompLevel == CompLevel.Qm).Select(m => new MatchResult
+        {
+            MatchNumber = m.MatchNumber,
+            ActualStartTime = m.ActualTime is null
+                ? null
+                : DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).UtcDateTime,
+            PostResultTime = m.PostResultTime is null
+                ? null
+                : DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).UtcDateTime,
+            MatchVideoLink = string.Join(", ", m.Videos.Select(VideoToUrl))
+        }).ToList();
     }
 
     public Task<List<QualRanking>> GetQualRankingsForEvent(FiMAdminApi.Models.Models.Event evt)
@@ -86,9 +100,31 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         throw new NotImplementedException();
     }
 
-    public Task<List<PlayoffMatch>> GetPlayoffResultsForEvent(FiMAdminApi.Models.Models.Event evt)
+    // WARNING: Partial implementation
+    public async Task<List<PlayoffMatch>> GetPlayoffResultsForEvent(FiMAdminApi.Models.Models.Event evt)
     {
-        throw new NotImplementedException();
+        var resp = await PerformRequest(BuildGetRequest($"event/{GetEventCode(evt.Season, evt.Code)}/matches"));
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadFromJsonAsync(BlueAllianceJsonSerializerContext.Default.GetMatchesArray) ??
+                   throw new MissingDataException("Unable to parse BlueAlliance matches response");
+        
+        return json.Where(m => m.CompLevel != CompLevel.Qm).Select(m => new PlayoffMatch
+        {
+            MatchNumber = m.CompLevel switch
+            {
+                CompLevel.Sf => m.SetNumber,
+                CompLevel.F => 13 + m.MatchNumber, // hacky, assumes all events are 8 alliance double elim
+                _ => 9999
+            },
+            ActualStartTime = m.ActualTime is null
+                ? null
+                : DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).UtcDateTime,
+            PostResultTime = m.PostResultTime is null
+                ? null
+                : DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).UtcDateTime,
+            MatchVideoLink = string.Join(", ", m.Videos.Select(VideoToUrl))
+        }).ToList();
     }
 
     public IPlayoffTiebreak GetPlayoffTiebreak(FiMAdminApi.Models.Models.Event evt)
@@ -115,14 +151,22 @@ public class BlueAllianceDataClient : RestClient, IDataClient
         return await resp.Content.ReadAsStringAsync();
     }
 
+    private static string VideoToUrl(MatchVideo video)
+    {
+        if (video.Type != MatchVideoType.Youtube)
+            throw new ApplicationException($"Unsupported match video type {video.Type}");
+
+        return $"https://youtube.com/watch?v={video.Key}";
+    }
+
     private static string GetDistrictKey(Season season, string districtName)
     {
-        return char.IsDigit(districtName[0]) ? districtName : $"{season.StartTime.Year}{districtName}";
+        return char.IsDigit(districtName[0]) ? districtName : $"{season.StartTime.Year}{districtName.ToLower()}";
     }
 
     private static string GetEventCode(Season season, string eventCode)
     {
-        return char.IsDigit(eventCode[0]) ? eventCode : $"{season.StartTime.Year}{eventCode}";
+        return char.IsDigit(eventCode[0]) ? eventCode : $"{season.StartTime.Year}{eventCode.ToLower()}";
     }
 
     private static Event ParseEvent(JsonElement evt)
