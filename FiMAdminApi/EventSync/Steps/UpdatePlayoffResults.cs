@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FiMAdminApi.EventSync.Steps;
 
 public class UpdatePlayoffResults(DataContext dbContext, ILogger<UpdatePlayoffResults> logger, EventPublisher eventPublisher, FrcFirebaseRepository firebaseRepository)
-    : EventSyncStep([EventStatus.AwaitingPlayoffs, EventStatus.PlayoffsInProgress])
+    : EventSyncStep([EventStatus.AwaitingPlayoffs, EventStatus.PlayoffsInProgress, EventStatus.WinnerDetermined])
 {
     private static readonly TimeSpan MatchStartTolerance = TimeSpan.FromMinutes(1);
 
