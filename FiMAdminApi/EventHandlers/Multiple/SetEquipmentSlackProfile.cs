@@ -63,6 +63,8 @@ public class SetEquipmentSlackProfile(DataContext dbContext, SlackService slackS
             name = $"MSC - {fimChampMatch.Groups[1].Value}";
         }
 
+        name = SetEquipmentSlackProfileRegexes.SpecialCharactersRegex().Replace(name, "");
+
         return name;
     }
 
@@ -87,6 +89,9 @@ internal partial class SetEquipmentSlackProfileRegexes
     
     [GeneratedRegex("^(?:FIRST in )?Michigan State Championship ?- ?(.*) Division$")]
     public static partial Regex FimChampDivision();
+
+    [GeneratedRegex(@"[^a-zA-Z0-9\s\(\)\-]")]
+    public static partial Regex SpecialCharactersRegex();
 
     [GeneratedRegex("(\\d+)$")]
     public static partial Regex EquipmentNumber();
