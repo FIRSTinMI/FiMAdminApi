@@ -47,18 +47,25 @@ public class EventSyncService(DataContext dbContext, EventRepository eventRepo, 
                 }
                 catch (Exception ex)
                 {
+                    await FinalizeSync();
+                    
                     return new EventSyncResult(false, ex.ToString());
                 }
             }
         } while (runAgain);
 
-        // We don't want to bother overwriting the whole event when we don't know that anything changed
-        if (originalStatus != evt.Status)
-            await firebaseRepo.UpdateEvent(evt);
-            
-        await dbContext.SaveChangesAsync();
+        await FinalizeSync();
 
         return new EventSyncResult(true);
+
+        async Task FinalizeSync()
+        {
+            // We don't want to bother overwriting the whole event when we don't know that anything changed
+            if (originalStatus != evt.Status)
+                await firebaseRepo.UpdateEvent(evt);
+            
+            await dbContext.SaveChangesAsync();
+        }
     }
 
     public async Task<EventSyncResult> ForceEventSyncStep(Event evt, string syncStepName)
