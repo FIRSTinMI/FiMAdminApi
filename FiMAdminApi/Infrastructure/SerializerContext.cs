@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FiMAdminApi.Clients.Models;
 using FiMAdminApi.Endpoints;
 using FiMAdminApi.EventSync;
 using FiMAdminApi.Models.Models;
@@ -48,6 +49,8 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(GoogleUserInfo))]
 [JsonSerializable(typeof(IFormFile))]
 [JsonSerializable(typeof(BaseSponsor[]))]
+[JsonSerializable(typeof(WebcastInfo[]))]
+[JsonSerializable(typeof(MatchesEndpoints.AddScheduleDeviationRequest))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }
