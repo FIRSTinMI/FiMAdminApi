@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Asp.Versioning.Builder;
 using FiMAdminApi.Data.EfPgsql;
+using FiMAdminApi.Helpers;
 using FiMAdminApi.Models.Enums;
 using FiMAdminApi.Models.Models;
 using FiMAdminApi.Services;
@@ -21,6 +22,7 @@ public static class AvCartsEndpoints
             .RequireAuthorization(nameof(GlobalPermission.Equipment_Av_ManageStream));
 
         matchesGroup.MapGet("/{cartId:guid:required}/vmix-config", GetVmixConfig);
+        matchesGroup.MapPut("/{cartId:guid:required}/slack-status", UpdateSlackStatus);
         matchesGroup.MapPut("/{cartId:guid:required}/stream-info", UpdateStreamInfo);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/start", StartStream);
         matchesGroup.MapPut("/{cartId:guid:required}/stream/stop", StopStream);
@@ -95,10 +97,44 @@ public static class AvCartsEndpoints
         return TypedResults.Ok();
     }
 
+    private static async Task<Results<Ok, NotFound>> UpdateSlackStatus(
+        [FromRoute] Guid cartId,
+        [FromBody] UpdateSlackStatusRequest request,
+        [FromServices] DataContext dbContext,
+        [FromServices] SlackService slackService)
+    {
+        var cart = await dbContext.AvCarts.Where(c => c.Id == cartId).FirstOrDefaultAsync();
+        if (cart is null || string.IsNullOrEmpty(cart.SlackUserId)) return TypedResults.NotFound();
+
+        var name = request.EventNameOverride;
+        if (name is null)
+        {
+            var evt = await dbContext.Events
+                .Where(e => e.TruckRouteId != null && dbContext.AvCarts.Any(c => c.TruckRouteId == e.TruckRouteId && c.Id == cartId))
+                .FirstOrDefaultAsync();
+
+            name = evt?.Name ?? "";
+        }
+        
+        var numberMatch = EventNameHelperRegexes.EquipmentNumber().Match(cart.Name);
+
+        var slackName = $"FIM AV {numberMatch.Groups[1].Value}";
+        if (!string.IsNullOrEmpty(name))
+        {
+            slackName += $" [{name}]";
+        }
+        
+        await slackService.SetEventInformationForUser(cart.SlackUserId, slackName);
+
+        return TypedResults.Ok();
+    }
+
     public class StreamInfo
     {
         public required string RtmpUrl { get; set; }
         public required string RtmpKey { get; set; }
         public required bool Enabled { get; set; }
     }
+
+    public record UpdateSlackStatusRequest(string? EventNameOverride);
 }

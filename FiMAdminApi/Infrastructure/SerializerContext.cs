@@ -50,7 +50,9 @@ namespace FiMAdminApi.Infrastructure;
 [JsonSerializable(typeof(IFormFile))]
 [JsonSerializable(typeof(BaseSponsor[]))]
 [JsonSerializable(typeof(WebcastInfo[]))]
+[JsonSerializable(typeof(ScheduleDeviation))]
 [JsonSerializable(typeof(MatchesEndpoints.AddScheduleDeviationRequest))]
+[JsonSerializable(typeof(AvCartsEndpoints.UpdateSlackStatusRequest))]
 public partial class SerializerContext : JsonSerializerContext
 {
 }

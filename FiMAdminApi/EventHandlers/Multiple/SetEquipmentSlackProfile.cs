@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using FiMAdminApi.Data.EfPgsql;
 using FiMAdminApi.Events;
+using FiMAdminApi.Helpers;
 using FiMAdminApi.Models.Models;
 using FiMAdminApi.Services;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,7 @@ public class SetEquipmentSlackProfile(DataContext dbContext, SlackService slackS
 
         if (equipment.Count == 0) return;
 
-        var name = CleanEventName(evt.Event.Name);
+        var name = EventNameHelper.CleanEventName(evt.Event.Name);
         foreach (var eq in equipment)
         {
             var newName = $"{GetEquipmentName(eq)} [{name}]";
@@ -38,34 +39,6 @@ public class SetEquipmentSlackProfile(DataContext dbContext, SlackService slackS
             var newName = $"{GetEquipmentName(eq)}";
             await slackService.SetEventInformationForUser(eq.SlackUserId!, newName);
         }
-    }
-
-    private static string CleanEventName(string name)
-    {
-        name = name.Replace(" Qualifier", "");
-
-        name = SetEquipmentSlackProfileRegexes.PresentedBy().Replace(name, string.Empty);
-        
-        var fimDistrictMatch = SetEquipmentSlackProfileRegexes.FimDistrict().Match(name);
-        if (fimDistrictMatch.Success)
-        {
-            name = fimDistrictMatch.Groups[1].Value;
-            if (fimDistrictMatch.Groups[2].Success && !string.IsNullOrWhiteSpace(fimDistrictMatch.Groups[2].Value))
-            {
-                // E.g., the "#2" in "...Troy Event #2 presented by..."
-                name += $" {fimDistrictMatch.Groups[2].Value}";
-                name = name.Trim();
-            }
-        }
-        var fimChampMatch = SetEquipmentSlackProfileRegexes.FimChampDivision().Match(name);
-        if (fimChampMatch.Success)
-        {
-            name = $"MSC - {fimChampMatch.Groups[1].Value}";
-        }
-
-        name = SetEquipmentSlackProfileRegexes.SpecialCharactersRegex().Replace(name, "");
-
-        return name;
     }
 
     private static string GetEquipmentName(Equipment eq)
