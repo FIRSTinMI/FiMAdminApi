@@ -100,7 +100,7 @@ public class FrcFirebaseRepository(DataContext dataContext, IConfiguration confi
         
         var returnList = new List<FirebaseMatchOrBreak>();
         var firstPlays = qualMatches.Where(m => m.TournamentLevel == TournamentLevel.Qualification)
-            .GroupBy(m => m.MatchNumber).Select(mg => mg.OrderBy(m => m.PlayNumber).First()).ToList();
+            .GroupBy(m => m.MatchNumber).Select(mg => mg.OrderBy(m => m.PlayNumber).First()).OrderBy(m => m.MatchNumber).ToList();
         returnList.AddRange(firstPlays.Select(m => DbMatchToFbMatch(m)));
 
         foreach (var deviation in deviations)
