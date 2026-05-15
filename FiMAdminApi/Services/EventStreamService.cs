@@ -354,35 +354,49 @@ public class EventStreamService(DataContext dataContext, IServiceProvider servic
             if (oaClient != null)
             {
                 // Attempt to find the TOA event key
-                var toaEventKey = await oaClient.GetEventKeyFromFTCEventsKey(evt.Code);
-                if (string.IsNullOrEmpty(toaEventKey))
+                try
                 {
-                    logger.LogWarning("Could not find TOA event key for event {EventId} with FTCEvents key {FTCEventsKey}", evt.Id, evt.Code);
-                    return;
+                    var toaEventKey = await oaClient.GetEventKeyFromFTCEventsKey(evt.Code);
+                    if (string.IsNullOrEmpty(toaEventKey))
+                    {
+                        logger.LogWarning(
+                            "Could not find TOA event key for event {EventId} with FTCEvents key {FTCEventsKey}",
+                            evt.Id, evt.Code);
+                        return;
+                    }
+
+                    // Update the event stream
+                    foreach (var (idx, stream) in streams.Index())
+                    {
+                        var streamSuffix = $"LS{idx + 1}";
+
+                        var updateSuccess = await oaClient.UpdateEventStream(
+                            toaEventKey,
+                            stream.StreamName,
+                            stream.StreamName,
+                            provider,
+                            stream.EmbedUrl,
+                            stream.ChannelUrl,
+                            stream.StartTime,
+                            stream.EndTime,
+                            streamSuffix);
+                        if (updateSuccess)
+                        {
+                            logger.LogInformation(
+                                "Successfully updated event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}",
+                                evt.Id, evt.Code, streamSuffix);
+                        }
+                        else
+                        {
+                            logger.LogError(
+                                "Failed to update event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}",
+                                evt.Id, evt.Code, streamSuffix);
+                        }
+                    }
                 }
-                // Update the event stream
-                foreach (var (idx, stream) in streams.Index())
+                catch (Exception ex)
                 {
-                    var streamSuffix = $"LS{idx + 1}";
-                    
-                    var updateSuccess = await oaClient.UpdateEventStream(
-                        toaEventKey,
-                        stream.StreamName,
-                        stream.StreamName,
-                        provider,
-                        stream.EmbedUrl,
-                        stream.ChannelUrl,
-                        stream.StartTime,
-                        stream.EndTime,
-                        streamSuffix);
-                    if (updateSuccess)
-                    {
-                        logger.LogInformation("Successfully updated event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
-                    }
-                    else
-                    {
-                        logger.LogError("Failed to update event stream for event {EventId} with FTCEvents key {FTCEventsKey}, stream suffix {StreamSuffix}", evt.Id, evt.Code, streamSuffix);
-                    }
+                    logger.LogWarning(ex, "Unable to publish streams to TOA");
                 }
             }
         }
