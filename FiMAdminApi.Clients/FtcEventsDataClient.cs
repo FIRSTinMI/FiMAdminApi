@@ -161,11 +161,11 @@ public class FtcEventsDataClient : RestClient, IDataClient
         {
             Name = a.Name,
             TeamNumbers = new List<int?> {
-                a.Captain,
-                a.Round1,
-                a.Round2,
-                a.Round3,
-                a.Backup,
+                a.Captain?.TeamNumber,
+                a.Round1?.TeamNumber,
+                a.Round2?.TeamNumber,
+                a.Round3?.TeamNumber,
+                a.Backup?.TeamNumber,
                 a.BackupReplaced
             }.Where(t => t is not null).Select(t => t!.Value).ToList()
         }).ToList();

@@ -5,10 +5,15 @@ internal record GetAlliances(
     
 internal record AllianceResult(
     string Name,
-    int? Captain,
-    int? Round1,
-    int? Round2,
-    int? Round3,
-    int? Backup,
+    AllianceTeam? Captain,
+    AllianceTeam? Round1,
+    AllianceTeam? Round2,
+    AllianceTeam? Round3,
+    AllianceTeam? Backup,
     int? BackupReplaced
 );
+
+internal record AllianceTeam(
+    int TeamNumber,
+    string DisplayTeamNumber,
+    string TeamName);
