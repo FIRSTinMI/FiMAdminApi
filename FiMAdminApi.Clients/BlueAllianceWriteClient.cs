@@ -21,8 +21,8 @@ namespace FiMAdminApi.Clients;
 /// </summary>
 public class BlueAllianceWriteClient : RestClient
 {
-    private readonly string _authId;
-    private readonly string _authSecret;
+    private string _authId;
+    private string _authSecret;
     private readonly Uri _baseUrl;
 
     public BlueAllianceWriteClient(IServiceProvider sp)
@@ -50,13 +50,40 @@ public class BlueAllianceWriteClient : RestClient
         sp.GetRequiredService<IHttpClientFactory>().CreateClient("BlueAlliance");
     }
 
+    public void OverrideAuth(string authId, string authSecret)
+    {
+        if (string.IsNullOrEmpty(authId) || string.IsNullOrEmpty(authSecret))
+            throw new ApplicationException("Invalid TBA Write auth credentials");
+
+        _authId = authId;
+        _authSecret = authSecret;
+    }
+
+    public async Task<string> GetEventInfo(Season season, string eventCode)
+    {
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/info", HttpMethod.Get, (bool?)null);
+
+        var response = await PerformRequest(request);
+
+        return await response.Content.ReadAsStringAsync();
+    }
+
     public async Task UpdateEventInfo(Season season, string eventCode, WebcastInfo[] webcastInfo)
     {
         var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/info/update", HttpMethod.Post, 
             new EventInfoRequest(webcastInfo
-                .Select(w => new EventInfoWebcastInfo(w.Url, w.Date is not null ? $"{w.Date:O}" : null)).ToArray()));
-
+                .Select(w => new EventInfoWebcastInfo(w.Platform switch
+                {
+                    StreamPlatform.Youtube => "youtube",
+                    StreamPlatform.Twitch => "twitch",
+                    _ => throw new ApplicationException($"Could not translate {w.Platform} to a TBA stream platform")
+                }, w.Channel, w.Url, w.Date is not null ? $"{w.Date:O}" : null)).ToArray()));
+        
         var response = await PerformRequest(request);
+
+        var re = await response.Content.ReadAsStringAsync();
+
+        Logger.LogInformation(re);
     }
 
     public async Task AddMatchVideos(Season season, string eventCode, Dictionary<string, string> videos)
@@ -77,20 +104,32 @@ public class BlueAllianceWriteClient : RestClient
         response.EnsureSuccessStatusCode();
     }
 
-    private HttpRequestMessage BuildRequest<TBody>(FormattableString endpoint, HttpMethod method, TBody body)
+    public async Task AddEventMedia(Season season, string eventCode, string[] videos)
     {
-        var jsonTypeInfo = BlueAllianceWriteJsonSerializer.Default.GetTypeInfo(typeof(TBody));
-        if (jsonTypeInfo is null)
-            throw new ApplicationException("Unsupported type to serialize body to BlueAllianceWriteClient");
-        
-        var serializedBody = JsonSerializer.Serialize(body, (JsonTypeInfo<TBody>) jsonTypeInfo);
+        var request = BuildRequest($"event/{GetEventCode(season, eventCode)}/media/add", HttpMethod.Post, videos);
+
+        var response = await PerformRequest(request);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private HttpRequestMessage BuildRequest<TBody>(FormattableString endpoint, HttpMethod method, TBody? body)
+    {
         var relativeUri = endpoint.EncodeString(Uri.EscapeDataString);
 
         var request = new HttpRequestMessage();
         request.Method = method;
         request.RequestUri = new Uri(_baseUrl, relativeUri);
         request.Headers.Add("X-Tba-Auth-Id", _authId);
-        request.Content = new StringContent(serializedBody, new MediaTypeHeaderValue("application/json"));
+        var serializedBody = "";
+        if (body is not null)
+        {
+            var jsonTypeInfo = BlueAllianceWriteJsonSerializer.Default.GetTypeInfo(typeof(TBody));
+            if (jsonTypeInfo is null)
+                throw new ApplicationException("Unsupported type to serialize body to BlueAllianceWriteClient");
+            serializedBody = JsonSerializer.Serialize(body, (JsonTypeInfo<TBody>) jsonTypeInfo);
+            request.Content = new StringContent(serializedBody, new MediaTypeHeaderValue("application/json"));
+        }
 
         var signature =
             MD5.HashData(Encoding.UTF8.GetBytes(_authSecret + request.RequestUri.AbsolutePath + serializedBody));
@@ -107,7 +146,7 @@ public class BlueAllianceWriteClient : RestClient
 
 internal record EventInfoRequest(EventInfoWebcastInfo[] Webcasts);
 
-internal record EventInfoWebcastInfo(string Url, string? Date);
+internal record EventInfoWebcastInfo(string Type, string Channel, string? Url, string? Date);
 
 [JsonSourceGenerationOptions(
     JsonSerializerDefaults.Web,
@@ -115,6 +154,7 @@ internal record EventInfoWebcastInfo(string Url, string? Date);
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(EventInfoRequest))]
+[JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal partial class BlueAllianceWriteJsonSerializer : JsonSerializerContext
 {
